@@ -14,7 +14,7 @@ services:
       - neo4j-logs:/logs
 
   backend:
-    build: ./backend
+    build: ../backend
     ports:
       - "8000:8000"
     environment:

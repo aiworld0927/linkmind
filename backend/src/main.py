@@ -49,8 +49,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
 register_exception_handlers(app)
 
 app.include_router(health_router, prefix="/api/v1", tags=["Health"])
@@ -62,16 +60,20 @@ app.include_router(expand_router, prefix="/api/v1", tags=["Expand"])
 app.include_router(search_router, prefix="/api/v1", tags=["Search"])
 app.include_router(cluster_router, prefix="/api/v1/cluster", tags=["Cluster"])
 
+frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend", "dist")
+frontend_dev_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend")
 
-@app.get("/")
-async def root():
+if os.path.exists(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
+else:
+    app.mount("/", StaticFiles(directory=frontend_dev_path, html=True), name="frontend")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.get("/api/")
+async def api_root():
     return success_response(data={"message": "LinkMind API is running"})
-
-
-@app.get("/frontend")
-async def serve_frontend():
-    frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend", "index.html")
-    return FileResponse(frontend_path)
 
 
 if __name__ == "__main__":
