@@ -36,7 +36,7 @@ start_neo4j() {
 install_dependencies() {
     echo "2. 安装项目依赖..."
     cd "$(dirname "$0")/../backend"
-    
+    echo pwd "$(pwd -)"
     if [ ! -d ".venv" ]; then
         echo "   创建虚拟环境..."
         python -m venv .venv

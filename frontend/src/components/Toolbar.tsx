@@ -175,10 +175,9 @@ export function Toolbar() {
           </Button>
 
           <Button
-            danger
             icon={<DashOutlined />}
             onClick={handleClearLevel}
-            style={{ backgroundColor: '#ef4444', borderColor: '#ef4444' }}
+            style={{ backgroundColor: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
           >
             重置画布
           </Button>

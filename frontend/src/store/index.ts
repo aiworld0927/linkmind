@@ -10,6 +10,11 @@ interface LevelHistory {
   breadcrumbs: BreadItem[];
 }
 
+interface NodePosition {
+  x: number;
+  y: number;
+}
+
 interface CanvasStore {
   currentNodes: NodeItem[];
   currentLevelId: string;
@@ -22,11 +27,14 @@ interface CanvasStore {
   drawerTargetNodeId: string | null;
   isLoading: boolean;
   levelHistory: LevelHistory[];
+  nodePositions: Record<string, NodePosition>;
 
   addNode: (node: NodeItem) => void;
   updateNode: (nodeId: string, patch: Partial<NodeItem>) => void;
   deleteNode: (nodeId: string, isCascade: boolean) => void;
   toggleNodeExpand: (nodeId: string) => void;
+  updateNodePosition: (nodeId: string, position: NodePosition) => void;
+  resetNodePositions: () => void;
 
   addListItem: (parentNodeId: string, item: Omit<ListItem, 'id' | 'createTime' | 'parentNodeId'>) => void;
   updateListItem: (parentNodeId: string, itemId: string, patch: Partial<ListItem>) => void;
@@ -110,6 +118,7 @@ export const useStore = create<CanvasStore>((set, get) => ({
   drawerTargetNodeId: null,
   isLoading: false,
   levelHistory: [],
+  nodePositions: {},
 
   addNode: (node: NodeItem) => {
     const state = get();
@@ -200,6 +209,19 @@ export const useStore = create<CanvasStore>((set, get) => ({
       ),
     }));
     get().syncToStorage();
+  },
+
+  updateNodePosition: (nodeId: string, position: NodePosition) => {
+    set((prev) => ({
+      nodePositions: {
+        ...prev.nodePositions,
+        [nodeId]: position,
+      },
+    }));
+  },
+
+  resetNodePositions: () => {
+    set({ nodePositions: {} });
   },
 
   addListItem: (parentNodeId: string, item: Omit<ListItem, 'id' | 'createTime' | 'parentNodeId'>) => {

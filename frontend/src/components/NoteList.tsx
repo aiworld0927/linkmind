@@ -98,13 +98,22 @@ export function NoteList({ items, parentNodeId, onAdd, onEdit, onDelete, style }
       {items.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Checkbox checked={selectAll && selectedIds.length === items.length} onChange={toggleSelectAll} />
+            <Checkbox 
+              checked={selectAll && selectedIds.length === items.length} 
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleSelectAll();
+              }} 
+            />
             <span style={{ fontSize: '12px', color: '#999999' }}>
               已选 {selectedIds.length} / {items.length}
             </span>
           </div>
           {selectedIds.length > 0 && (
-            <Button danger size="small" onClick={handleBatchDelete}>
+            <Button danger size="small" onClick={(e) => {
+              e.stopPropagation();
+              handleBatchDelete();
+            }}>
               批量删除
             </Button>
           )}
@@ -127,20 +136,29 @@ export function NoteList({ items, parentNodeId, onAdd, onEdit, onDelete, style }
                 type="text"
                 icon={<EditOutlined />}
                 size="small"
-                onClick={() => setEditingItem(item)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setEditingItem(item);
+                }}
               />,
               <Button
                 type="text"
                 danger
                 icon={<DeleteOutlined />}
                 size="small"
-                onClick={() => handleDelete(item.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDelete(item.id);
+                }}
               />,
             ]}
           >
             <Checkbox
               checked={selectedIds.includes(item.id)}
-              onChange={() => toggleSelect(item.id)}
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleSelect(item.id);
+              }}
               style={{ marginRight: '12px', marginTop: '2px' }}
             />
             <div style={{ flex: 1 }}>
@@ -168,7 +186,10 @@ export function NoteList({ items, parentNodeId, onAdd, onEdit, onDelete, style }
             <div style={{ textAlign: 'center', color: '#999999', padding: '30px 0' }}>
               <div style={{ fontSize: '32px', marginBottom: '8px' }}>📝</div>
               <div style={{ marginBottom: '12px' }}>暂无附属笔记</div>
-              <Button type="dashed" onClick={() => setShowAddModal(true)}>
+              <Button type="dashed" onClick={(e) => {
+                e.stopPropagation();
+                setShowAddModal(true);
+              }}>
                 <PlusOutlined /> 添加笔记
               </Button>
             </div>
@@ -177,7 +198,10 @@ export function NoteList({ items, parentNodeId, onAdd, onEdit, onDelete, style }
       />
 
       <div style={{ marginTop: '12px' }}>
-        <Button type="dashed" block onClick={() => setShowAddModal(true)}>
+        <Button type="dashed" block onClick={(e) => {
+          e.stopPropagation();
+          setShowAddModal(true);
+        }}>
           <PlusOutlined /> 添加笔记
         </Button>
       </div>
