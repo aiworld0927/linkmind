@@ -17,7 +17,16 @@ dependencies = [
     "pydantic-settings==2.5.0",
     "networkx==3.4.2",
     "python-louvain==0.16",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "pgvector>=0.3.6",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3"]
+
+[tool.setuptools]
+packages = []
 
 [[tool.uv.index]]
 name = "tsinghua"

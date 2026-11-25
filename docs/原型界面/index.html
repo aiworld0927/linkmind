@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LinkMind 原型归档</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;background:#f5f7fa;color:#1f2d3d;font:14px/1.7 "Microsoft YaHei","PingFang SC",-apple-system,BlinkMacSystemFont,sans-serif}
+  .wrap{max-width:980px;margin:0 auto;padding:56px 24px}
+  h1{font-size:24px;margin:0 0 8px}
+  .sub{color:#8a94a6;font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:32px}
+  a.card{display:block;background:#fff;border:1px solid #e3e8ef;border-radius:12px;padding:20px;text-decoration:none;color:inherit;transition:all .16s ease}
+  a.card:hover{border-color:#1d4ed8;box-shadow:0 10px 26px rgba(29,78,216,.13);transform:translateY(-2px)}
+  .accent{width:44px;height:4px;border-radius:2px;background:#1d4ed8;margin-bottom:14px}
+  .card h2{font-size:16px;margin:0 0 6px}
+  .card p{font-size:12.5px;color:#8a94a6;margin:0;line-height:1.7}
+  .meta{margin-top:14px;font-size:12px;color:#1d4ed8}
+  footer{margin-top:32px;font-size:12px;color:#8a94a6}
+  code{background:#eef2f7;border-radius:4px;padding:1px 5px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>LinkMind 原型归档</h1>
+  <div class="sub">静态原型 · 与正式 React 实现对照使用</div>
+  <div class="grid">
+    <a class="card" href="demo-mindmap.html">
+      <div class="accent"></div>
+      <h2>脑图与首页</h2>
+      <p>知识地图卡片、脑图画布、节点属性抽屉、目录导入与 Git 状态徽标。</p>
+      <div class="meta">打开 demo-mindmap.html →</div>
+    </a>
+    <a class="card" href="demo-git.html">
+      <div class="accent" style="background:#0f766e"></div>
+      <h2>Git 管理</h2>
+      <p>多仓库切换、变更勾选提交、拉取、推送、冲突解决、合并与动作记录。</p>
+      <div class="meta">打开 demo-git.html →</div>
+    </a>
+    <a class="card" href="demo-note.html">
+      <div class="accent" style="background:#b45309"></div>
+      <h2>笔记阅读</h2>
+      <p>Markdown 渲染、文档大纲与滚动高亮，需通过脑图属性中的「查看笔记」进入。</p>
+      <div class="meta">打开 demo-note.html →</div>
+    </a>
+  </div>
+  <footer>正式实现入口：前端 <code>#/</code>、<code>#/map/:datasetId</code>、<code>#/git</code>、<code>#/note</code>；详见同目录 README.md。</footer>
+</div>
+</body>
+</html>

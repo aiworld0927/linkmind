@@ -5,6 +5,14 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 import traceback
 
 from utils.response import error_response
+from utils.errors import BusinessError
+
+
+async def business_exception_handler(request: Request, exc: BusinessError):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response(code=exc.status_code, msg=exc.message),
+    )
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -31,6 +39,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 
 def register_exception_handlers(app: FastAPI):
+    app.add_exception_handler(BusinessError, business_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(Exception, global_exception_handler)

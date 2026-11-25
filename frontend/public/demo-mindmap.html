@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>LinkMind 脑图样式 Demo</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f5f7fa;color:#1f2d3d;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid #e3e8ef;flex-wrap:wrap;z-index:5}
+#brand{font-size:14px;font-weight:700;color:#1d4ed8;letter-spacing:.5px;margin-right:2px}
+.sp{flex:1}
+button.mini{padding:6px 12px;font-size:12px;border-radius:6px;border:1px solid #d7dee8;background:#fff;cursor:pointer;color:#4a5568;font-family:inherit}
+button.mini:hover{border-color:#1d4ed8;color:#1d4ed8}
+button.mini:disabled{opacity:.45;cursor:not-allowed}
+button.mini:disabled:hover{border-color:#d7dee8;color:#4a5568}
+#q{padding:6px 10px;border:1px solid #d7dee8;border-radius:6px;font-size:12px;width:170px;outline:none}
+#q:focus{border-color:#1d4ed8}
+#hint{font-size:12px;color:#8a94a6}
+
+/* 首页：脑图根节点区块列表 */
+#home{position:absolute;inset:0;overflow:auto;background:#f5f7fa;padding:40px 24px;display:flex;justify-content:center;cursor:default}
+#home.off{display:none}
+.home-inner{width:100%;max-width:980px;margin:0 auto;text-align:center}
+.home-inner h1{font-size:22px;color:#1f2d3d;letter-spacing:.5px}
+.home-inner .sub{font-size:12.5px;color:#8a94a6;margin-top:8px}
+#dsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;margin-top:28px;text-align:left}
+.ds-card{position:relative;background:#fff;border:1px solid #e3e8ef;border-radius:12px;padding:18px 18px 16px;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.ds-card:hover{border-color:#1d4ed8;box-shadow:0 10px 26px rgba(29,78,216,.13);transform:translateY(-2px)}
+.ds-card .accent{width:44px;height:4px;border-radius:2px;background:var(--c);margin-bottom:12px}
+.ds-card h3{font-size:16px;color:#1f2d3d}
+.ds-card p{font-size:12.5px;color:#8a94a6;line-height:1.6;margin-top:6px;min-height:20px}
+.ds-card .stats{display:flex;gap:18px;margin-top:14px;font-size:12px;color:#4a5568}
+.ds-card .stats b{font-size:16px;color:#1f2d3d;margin-right:3px}
+.ds-card .arrow{position:absolute;right:18px;top:18px;font-size:12px;color:#cbd5e1}
+.ds-card:hover .arrow{color:#1d4ed8}
+.card-act{position:absolute;right:14px;top:14px;display:none;gap:6px;background:#fff;border-radius:6px}
+.ds-card:hover .card-act{display:flex}
+.ds-card:hover .arrow{display:none}
+.card-act button{padding:3px 8px;font-size:11px;border-radius:5px;border:1px solid #d7dee8;background:#fff;color:#4a5568;cursor:pointer;font-family:inherit}
+.card-act button:hover{border-color:#1d4ed8;color:#1d4ed8}
+.card-act button.danger:hover{border-color:#b91c1c;color:#b91c1c}
+.new-card{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:150px;border:1px dashed #b9c4d4;border-radius:12px;background:#fbfcfe;color:#8a94a6;cursor:pointer;transition:all .16s ease}
+.new-card:hover{border-color:#1d4ed8;color:#1d4ed8;background:#f5f8ff}
+.new-card .plus{font-size:26px;line-height:1}
+.new-card span{font-size:12.5px}
+
+/* 弹窗 */
+#modal{position:fixed;inset:0;background:rgba(15,23,42,.32);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
+#modal.on{display:flex}
+.modal{width:420px;max-width:94vw;background:#fff;border-radius:12px;box-shadow:0 18px 48px rgba(15,23,42,.22);overflow:hidden}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eef1f6;font-size:14px;font-weight:600}
+.modal-bd{padding:16px;max-height:68vh;overflow:auto}
+.modal-bd label{display:block;font-size:12px;color:#8a94a6;margin:10px 0 6px}
+.modal-bd label:first-child{margin-top:0}
+.modal-bd input,.modal-bd textarea{width:100%;padding:8px 10px;border:1px solid #d7dee8;border-radius:6px;font-size:13px;outline:none;font-family:inherit}
+.modal-bd input:focus,.modal-bd textarea:focus{border-color:#1d4ed8}
+.modal-bd textarea{resize:vertical;min-height:96px;line-height:1.6}
+.modal-err{color:#b91c1c;font-size:12px;margin-top:8px;min-height:16px;padding:0 16px}
+.modal-ft{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid #eef1f6;background:#fbfcfe}
+button.mini.primary{background:#1d4ed8;border-color:#1d4ed8;color:#fff}
+button.mini.primary:hover{background:#1a45c0;color:#fff}
+button.mini.danger{background:#b91c1c;border-color:#b91c1c;color:#fff}
+button.mini.danger:hover{background:#a11616;color:#fff}
+#picker{position:fixed;inset:0;background:rgba(15,23,42,.32);display:none;align-items:center;justify-content:center;z-index:62;padding:20px}
+#picker.on{display:flex}
+#repoDlg{position:fixed;inset:0;background:rgba(15,23,42,.32);display:none;align-items:center;justify-content:center;z-index:64;padding:20px}
+#repoDlg.on{display:flex}
+.cand{border:1px solid #e3e8ef;border-radius:8px;padding:8px 10px;margin-bottom:6px;cursor:pointer;font-size:12.5px;line-height:1.6}
+.cand:hover{border-color:#1d4ed8;background:#f7f9ff}
+.cand b{display:block;font-size:13px;color:#1f2d3d}
+.cand span{color:#8a94a6;font-size:11.5px}
+#picker .pk{width:620px;max-width:96vw;max-height:84vh;background:#fff;border-radius:12px;box-shadow:0 18px 48px rgba(15,23,42,.22);display:flex;flex-direction:column;overflow:hidden}
+#picker .pk-hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eef1f6;font-size:14px;font-weight:600}
+#picker .pk-path{padding:10px 16px;font-size:12.5px;color:#4a5568;background:#fafbfe;border-bottom:1px solid #f2f4f8;word-break:break-all}
+#picker .pk-path a{color:#1d4ed8;cursor:pointer;text-decoration:none}
+#picker .pk-path .cur{color:#8a94a6}
+#picker .pk-list{padding:6px 10px 12px;overflow:auto;min-height:200px}
+#picker .pk-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13.5px}
+#picker .pk-row:hover{background:#f2f6ff}
+#picker .pk-row .nm{flex:1;color:#1f2d3d}
+#picker .pk-row .meta{font-size:12px;color:#8a94a6}
+#picker .pk-empty{padding:36px 10px;text-align:center;color:#8a94a6;font-size:13px}
+#picker .pk-ft{display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid #eef1f6;background:#fbfcfe}
+#picker .pk-tip{font-size:12.5px;color:#8a94a6}
+#picker .pk-tip.err{color:#b91c1c}
+#stage{flex:1;position:relative;overflow:hidden;cursor:grab}
+#stage.drag{cursor:grabbing}
+svg{width:100%;height:100%;display:block}
+.nt{cursor:pointer}
+.nt text{dominant-baseline:middle;user-select:none}
+.nt rect{filter:drop-shadow(0 1px 2px rgba(15,23,42,.10))}
+.nt.sel rect{stroke:#1d4ed8;stroke-width:2.5;filter:drop-shadow(0 2px 7px rgba(29,78,216,.45))}
+.nt.sel .sel-ring{fill:none;stroke:#1d4ed8;stroke-width:1.8;stroke-dasharray:7 5;stroke-opacity:.85;filter:none;pointer-events:none;animation:seldash 1.2s linear infinite}
+@keyframes seldash{to{stroke-dashoffset:-24}}
+.hit{filter:drop-shadow(0 0 3px #f59e0b)}
+
+/* 右键操作菜单 */
+#ctx{position:fixed;z-index:70;min-width:172px;background:#fff;border:1px solid #e3e8ef;border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,.18);padding:6px;display:none}
+#ctx.on{display:block}
+#ctx .ct{font-size:11.5px;color:#8a94a6;padding:4px 10px 6px;max-width:210px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#ctx button{display:block;width:100%;padding:8px 10px;border:0;background:transparent;border-radius:6px;font-size:13px;color:#1f2d3d;cursor:pointer;font-family:inherit;text-align:left}
+#ctx button:hover{background:#f2f6ff;color:#1d4ed8}
+#ctx button.danger{color:#b91c1c}
+#ctx button.danger:hover{background:#fef2f2;color:#b91c1c}
+#ctx button:disabled{color:#cbd5e1;cursor:not-allowed;background:transparent}
+#ctx .sep{height:1px;background:#eef1f6;margin:5px 4px}
+.pTip{font-size:11.5px;color:#8a94a6;margin-top:8px;line-height:1.6}
+.crumb{font-size:12px;color:#4a5568;line-height:1.7;word-break:break-all;background:#f8fafc;border:1px solid #eef1f6;border-radius:8px;padding:8px 10px}
+.crumb .sep{color:#cbd5e1;margin:0 3px}
+button.mini.wide{width:100%;padding:9px 12px;font-size:13px;margin-top:8px}
+button.mini.wide:disabled{color:#8a94a6}
+.empty{font-size:12.5px;color:#8a94a6;text-align:center;padding:28px 0;line-height:1.8}
+.prop{border:1px solid #e3e8ef;border-radius:8px;padding:9px 10px;margin-bottom:8px;background:#fff}
+.prop-hd{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.prop-hd b{font-size:13px;color:#1f2d3d;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prop-hd a{font-size:11.5px;color:#1d4ed8;white-space:nowrap;cursor:pointer}
+.prop-hd a:hover{text-decoration:underline}
+.prop-note{font-size:12px;color:#4a5568;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prop-meta{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:7px}
+.prop-act{margin-left:auto;display:flex;gap:4px}
+.prop-act button{padding:2px 8px;font-size:11px;border-radius:5px;border:1px solid #d7dee8;background:#fff;color:#4a5568;cursor:pointer;font-family:inherit}
+.prop-act button:hover{border-color:#1d4ed8;color:#1d4ed8}
+.prop-act button.danger:hover{border-color:#b91c1c;color:#b91c1c}
+.mini-empty{font-size:11.5px;color:#cbd5e1}
+/* 知识仓库 / Git 状态 */
+.repo-tag{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:#4a5568;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;padding:1px 6px;margin-top:8px}
+.git-badge{display:inline-block;font-size:10.5px;line-height:1.5;padding:0 5px;border-radius:4px;border:1px solid transparent;font-weight:600}
+.g-modified{color:#b45309;background:#fffbeb;border-color:#fde68a}
+.g-added{color:#15803d;background:#f0fdf4;border-color:#bbf7d0}
+.g-deleted{color:#b91c1c;background:#fef2f2;border-color:#fecaca}
+.g-untracked{color:#6b7280;background:#f8fafc;border-color:#e2e8f0}
+.g-conflict{color:#9d174d;background:#fdf2f8;border-color:#fbcfe8}
+.g-renamed,.g-copied{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}
+.g-changed{color:#4a5568;background:#f1f5f9;border-color:#e2e8f0}
+
+/* 操作记录抽屉 */
+#log{position:fixed;top:0;left:0;bottom:0;width:320px;max-width:90vw;background:#fff;border-right:1px solid #e3e8ef;box-shadow:8px 0 24px rgba(15,23,42,.12);transform:translateX(-100%);transition:transform .2s ease;z-index:44;display:flex;flex-direction:column}
+#log.on{transform:translateX(0)}
+#log .lh{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eef1f6;font-size:14px;font-weight:600}
+#log .lb{padding:8px 16px 20px;overflow:auto}
+#log .op{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed #eef1f6;font-size:12.5px;line-height:1.6;color:#4a5568}
+#log .ot{color:#8a94a6;font-variant-numeric:tabular-nums;flex:none}
+
+/* 右侧笔记抽屉 */
+#side{position:fixed;top:0;right:0;bottom:0;width:360px;max-width:92vw;background:#fff;border-left:1px solid #e3e8ef;box-shadow:-8px 0 24px rgba(15,23,42,.12);transform:translateX(100%);transition:transform .2s ease;z-index:45;display:flex;flex-direction:column}
+#side.on{transform:translateX(0)}
+#side .hd{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eef1f6;font-size:14px;font-weight:600}
+#side .bd{padding:8px 16px 20px;overflow:auto}
+#side h4{font-size:12px;color:#8a94a6;font-weight:400;margin:14px 0 6px}
+#side .crumb{margin-top:12px}
+#side .item{padding:10px 0;border-bottom:1px dashed #eef1f6;font-size:13px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+#side .item .lb{font-size:12px;color:#8a94a6;margin-bottom:6px;white-space:normal}
+.tag{font-size:10px;color:#1d4ed8;background:#eef4ff;border:1px solid #dbe7ff;border-radius:3px;padding:0 4px}
+</style>
+</head>
+<body>
+<div id="bar">
+  <div id="brand">LinkMind</div>
+  <button class="mini" id="backHome" style="display:none" onclick="goHome()">返回首页</button>
+  <span id="hint">点击区块进入对应脑图</span>
+  <span class="sp"></span>
+  <div id="mapTools" style="display:none;align-items:center;gap:10px;flex-wrap:wrap">
+    <input id="q" placeholder="搜索关键词">
+    <button class="mini" onclick="expandAll()">全部展开</button>
+    <button class="mini" onclick="toLevel(1)">收起到一级</button>
+    <button class="mini" onclick="fit()">居中布局</button>
+    <button class="mini" onclick="zoom(1.2)">放大</button>
+    <button class="mini" onclick="zoom(0.83)">缩小</button>
+    <button class="mini" onclick="openProps()">节点属性</button>
+  </div>
+  <div id="homeTools" style="display:flex;align-items:center;gap:10px">
+    <button class="mini" onclick="openPicker()">导入知识地图</button>
+    <button class="mini" onclick="window.open('demo-git.html','_blank')">Git 管理</button>
+    <button class="mini" onclick="doExport()">导出</button>
+    <button class="mini" onclick="toggleLog()">操作记录</button>
+  </div>
+</div>
+<div id="stage">
+  <svg id="svg"><g id="view"></g></svg>
+  <div id="home">
+    <div class="home-inner">
+      <h1>选择知识地图</h1>
+      <p class="sub">每个区块是一张脑图的根节点，点击进入</p>
+      <div id="dsGrid"></div>
+    </div>
+  </div>
+</div>
+
+<div id="log">
+  <div class="lh"><b>操作记录</b><button class="mini" onclick="toggleLog(false)">关闭</button></div>
+  <div class="lb" id="logBody"></div>
+</div>
+
+<div id="side">
+  <div class="hd"><span id="sideTitle">节点属性</span><button class="mini" onclick="closeSide()">关闭</button></div>
+  <div class="bd" id="sideBody"></div>
+</div>
+
+<div id="ctx"></div>
+
+<div id="modal">
+  <div class="modal">
+    <div class="modal-hd"><b id="modalTitle">新建知识地图</b><button class="mini" onclick="closeModal()">关闭</button></div>
+    <div class="modal-bd" id="modalBody"></div>
+    <div class="modal-err" id="modalErr"></div>
+    <div class="modal-ft">
+      <button class="mini" onclick="closeModal()">取消</button>
+      <button class="mini primary" id="modalOk">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="picker">
+  <div class="pk">
+    <div class="pk-hd"><b>导入知识地图</b><button class="mini" onclick="closePicker()">关闭</button></div>
+    <div class="pk-path" id="pkPath"></div>
+    <div class="pk-list" id="pkList"></div>
+    <div class="pk-ft">
+      <span class="pk-tip" id="pkTip">选择要导入的目录</span>
+      <span style="flex:1"></span>
+      <button class="mini" onclick="openRepoDlg()">添加仓库</button>
+      <button class="mini" id="pkUp" onclick="pickerUp()">上一级</button>
+      <button class="mini primary" id="pkOk" onclick="confirmImportDir()">导入此目录</button>
+    </div>
+  </div>
+</div>
+
+<div id="repoDlg">
+  <div class="modal" style="width:520px">
+    <div class="modal-hd"><b>添加知识仓库</b><button class="mini" onclick="closeRepoDlg()">关闭</button></div>
+    <div class="modal-bd">
+      <label>仓库名称</label>
+      <input id="repoName" maxlength="30" placeholder="例如：示例知识库">
+      <label>起始目录（相对知识库根目录，可留空）</label>
+      <input id="repoPath" placeholder="示例知识库">
+      <div id="repoCandWrap" style="margin-top:10px"></div>
+      <div class="pTip">演示说明：知识仓库是独立 git 仓库，与产品工程仓库无关；此处登记与 Git 状态均为前端演示数据。</div>
+    </div>
+    <div class="modal-err" id="repoErr"></div>
+    <div class="modal-ft">
+      <button class="mini" onclick="closeRepoDlg()">取消</button>
+      <button class="mini primary" id="repoOk" onclick="submitRepo()">添加</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* 数据：每张地图 nodes 为递归结构，笔记作为节点的“属性”存在 */
+const MAPS = [
+  {
+    title: "机器学习基础",
+    desc: "算法、框架与评估体系的知识地图",
+    props: [],
+    nodes: [
+      { id: "ml-basic", name: "机器学习基础", props: [
+        { label: "核心概念", note: { c: "监督学习是从标注数据中学习映射关系的机器学习方法。", t: ["算法", "基础"], r: "核心概念" } },
+        { label: "聚类常用", note: { c: "无监督学习用于从未标注数据中发现模式和结构。", t: ["算法", "基础"], r: "聚类常用" } },
+        { label: "AlphaGo 使用", note: { c: "强化学习通过与环境交互获得奖励来学习最优策略。", t: ["算法", "进阶"], r: "AlphaGo 使用" } },
+        { label: "工业常用", note: { c: "半监督学习结合少量标注数据和大量未标注数据进行学习。", t: ["算法", "进阶"], r: "工业常用" } },
+        { label: "深度学习必备", note: { c: "迁移学习将从一个任务中学到的知识应用到另一个相关任务。", t: ["算法", "热门"], r: "深度学习必备" } }
+      ], children: [] },
+      { id: "ml-framework", name: "深度学习框架", props: [
+        { label: "最流行", note: { c: "TensorFlow 是 Google 开发的开源机器学习框架。", t: ["框架", "Google"], r: "最流行" } },
+        { label: "研究首选", note: { c: "PyTorch 是 Facebook 开发的深度学习框架，支持动态计算图。", t: ["框架", "Facebook"], r: "研究首选" } },
+        { label: "科研新宠", note: { c: "JAX 是 Google 的高性能数值计算库，支持自动微分。", t: ["框架", "Google"], r: "科研新宠" } },
+        { label: "云服务集成", note: { c: "MXNet 是 Amazon 支持的深度学习框架，多语言支持。", t: ["框架", "Amazon"], r: "云服务集成" } }
+      ], children: [] },
+      { id: "ml-preprocess", name: "数据预处理", props: [
+        { label: "第一步", note: { c: "数据清洗包括处理缺失值、异常值和重复数据。", t: ["数据", "基础"], r: "第一步" } },
+        { label: "决定上限", note: { c: "特征工程是从原始数据中提取有意义特征的过程。", t: ["数据", "重要"], r: "决定上限" } },
+        { label: "常用", note: { c: "数据标准化将特征缩放到相同尺度，加速收敛。", t: ["数据", "技巧"], r: "常用" } },
+        { label: "图像必备", note: { c: "数据增强通过变换数据增加训练样本多样性。", t: ["数据", "CV"], r: "图像必备" } }
+      ], children: [] },
+      { id: "ml-evaluate", name: "模型评估", props: [
+        { label: "基础指标", note: { c: "准确率是分类正确的样本占总样本的比例。", t: ["评估", "分类"], r: "基础指标" } },
+        { label: "关注误报", note: { c: "精确率衡量预测为正的样本中有多少是真正的正样本。", t: ["评估", "分类"], r: "关注误报" } },
+        { label: "关注漏报", note: { c: "召回率衡量所有正样本中有多少被正确预测。", t: ["评估", "分类"], r: "关注漏报" } },
+        { label: "平衡指标", note: { c: "F1 分数是精确率和召回率的调和平均数。", t: ["评估", "分类"], r: "平衡指标" } },
+        { label: "常用", note: { c: "AUC-ROC 曲线衡量模型在不同阈值下的分类能力。", t: ["评估", "分类"], r: "常用" } }
+      ], children: [] },
+      { id: "ml-nlp", name: "自然语言处理", props: [], children: [] }
+    ]
+  },
+  {
+    title: "产品研发流程",
+    desc: "从需求到发布的标准流程节点",
+    props: [],
+    nodes: [
+      { id: "pd-demand", name: "需求洞察", props: [
+        { label: "季度输入", note: { c: "通过用户访谈和数据分析识别真实痛点，形成需求池。", t: ["调研", "需求"], r: "季度输入" } },
+        { label: "评审必看", note: { c: "用价值-成本矩阵对需求排序，优先解决高价值低复杂度项。", t: ["优先级"], r: "评审必看" } }
+      ], children: [] },
+      { id: "pd-design", name: "方案设计", props: [
+        { label: "可评审", note: { c: "输出交互原型与信息架构，明确关键路径。", t: ["设计", "原型"], r: "可评审" } },
+        { label: "前后端对齐", note: { c: "组织技术方案评审，同步接口契约与数据模型。", t: ["评审"], r: "前后端对齐" } }
+      ], children: [] },
+      { id: "pd-develop", name: "研发交付", props: [
+        { label: "站会", note: { c: "按迭代拆分任务，每日同步阻塞项与风险。", t: ["迭代", "协作"], r: "站会" } },
+        { label: "门禁", note: { c: "提交前必须通过单元测试与静态检查。", t: ["质量"], r: "门禁" } }
+      ], children: [] },
+      { id: "pd-test", name: "测试验收", props: [
+        { label: "必跑", note: { c: "覆盖核心链路的自动化回归，保障上线质量。", t: ["测试", "自动化"], r: "必跑" } },
+        { label: "签字确认", note: { c: "产品与业务共同验收，确认指标与埋点。", t: ["验收"], r: "签字确认" } }
+      ], children: [] },
+      { id: "pd-release", name: "发布复盘", props: [
+        { label: "闭环", note: { c: "上线后 48 小时观察核心指标并完成复盘。", t: ["发布", "复盘"], r: "闭环" } }
+      ], children: [] }
+    ]
+  }
+];
+
+const PALETTE = ["#1d4ed8","#0f766e","#b45309","#7e22ce","#b91c1c","#0369a1","#4d7c0f","#a16207"];
+const ROWGAP = 11, GAPX = 58;
+const DEPTH_W = [258, 222, 208];
+const DEPTH_FS = [19, 16, 13.5];
+const DEPTH_H = [42, 36, 32];
+const ROOT_ID = 'ROOT';
+
+const NW  = d => DEPTH_W[Math.min(d, DEPTH_W.length - 1)];
+const NFS = d => DEPTH_FS[Math.min(d, DEPTH_FS.length - 1)];
+const NH  = d => DEPTH_H[Math.min(d, DEPTH_H.length - 1)];
+
+let cur = -1;
+let selectedId = null;
+let collapsed = new Set();
+let view = { k: 1, x: 24, y: 24 };
+let views = [], bounds = null, svg, vg, stage;
+let editIndex = -1;
+let seq = 0;
+
+function newId(){ return 'n' + Date.now().toString(36) + '_' + (seq++); }
+
+function escapeHtml(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function focusLater(id){
+  setTimeout(() => { const el = document.getElementById(id); if (el) el.focus(); }, 30);
+}
+
+function ensureArr(o, k){ if (!Array.isArray(o[k])) o[k] = []; return o[k]; }
+
+function countNodes(nodes){
+  return (nodes || []).reduce((s, n) => s + 1 + countNodes(n.children), 0);
+}
+
+function countPropsIn(nodes){
+  return (nodes || []).reduce((s, n) => s + (n.props ? n.props.length : 0) + countPropsIn(n.children), 0);
+}
+
+function countProps(m){
+  return (m.props ? m.props.length : 0) + countPropsIn(m.nodes);
+}
+
+function countSubtree(node){
+  return 1 + (node.children || []).reduce((s, c) => s + countSubtree(c), 0);
+}
+
+/* ---------- 首页 ---------- */
+function renderHome(){
+  const grid = document.getElementById('dsGrid');
+  grid.innerHTML = '';
+  MAPS.forEach((m, i) => {
+    const el = document.createElement('div');
+    el.className = 'ds-card';
+    el.style.setProperty('--c', PALETTE[i % PALETTE.length]);
+    el.innerHTML = `<div class="accent"></div>
+      <h3>${escapeHtml(m.title)}</h3>
+      <p>${escapeHtml(m.desc || '')}</p>
+      <div class="stats"><span><b>${countNodes(m.nodes)}</b>节点</span><span><b>${countProps(m)}</b>属性</span></div>
+      ${m.repo ? `<div class="repo-tag">仓库：${escapeHtml(m.repo.name)}</div>` : ''}
+      <span class="arrow">进入 →</span>
+      <div class="card-act">
+        <button data-act="edit">编辑</button>
+        <button data-act="delete" class="danger">删除</button>
+      </div>`;
+    el.onclick = () => enterMap(i);
+    el.querySelector('[data-act="edit"]').onclick = (e) => { e.stopPropagation(); openMapModal(i); };
+    el.querySelector('[data-act="delete"]').onclick = (e) => { e.stopPropagation(); askDeleteMap(i); };
+    grid.appendChild(el);
+  });
+  const add = document.createElement('div');
+  add.className = 'new-card';
+  add.innerHTML = '<div class="plus">＋</div><span>新建知识地图</span>';
+  add.onclick = () => openMapModal(-1);
+  grid.appendChild(add);
+}
+
+function enterMap(i){
+  cur = i;
+  selectedId = null;
+  collapsed.clear();
+  closeSide();
+  closeCtx();
+  toggleLog(false);
+  document.getElementById('homeTools').style.display = 'none';
+  document.getElementById('home').classList.add('off');
+  document.getElementById('backHome').style.display = '';
+  document.getElementById('mapTools').style.display = 'flex';
+  document.getElementById('hint').textContent = '左键点击节点展开/收起 · 右键打开操作菜单 · 滚轮缩放 · 拖拽平移';
+  build();
+  fit();
+  loadGitStatus(MAPS[i]);
+}
+
+function goHome(){
+  closeSide();
+  closeCtx();
+  toggleLog(false);
+  GIT = { repoId: null, files: {} };
+  document.getElementById('homeTools').style.display = 'flex';
+  selectedId = null;
+  cur = -1;
+  document.getElementById('q').value = '';
+  document.getElementById('home').classList.remove('off');
+  document.getElementById('backHome').style.display = 'none';
+  document.getElementById('mapTools').style.display = 'none';
+  document.getElementById('hint').textContent = '点击区块进入对应脑图';
+  renderHome();
+}
+
+/* ---------- 操作记录 / 导入导出 ---------- */
+const OPS = [];
+
+function stamp(){
+  const t = new Date();
+  return [t.getHours(), t.getMinutes(), t.getSeconds()].map(v => String(v).padStart(2, '0')).join(':');
+}
+
+function logOp(text){
+  OPS.unshift({ t: stamp(), text });
+  if (OPS.length > 200) OPS.length = 200;
+  if (document.getElementById('log').classList.contains('on')) renderLog();
+}
+
+function renderLog(){
+  const body = document.getElementById('logBody');
+  body.innerHTML = OPS.length
+    ? OPS.map(o => `<div class="op"><span class="ot">${o.t}</span><span>${escapeHtml(o.text)}</span></div>`).join('')
+    : '<div class="empty">暂无操作记录</div>';
+}
+
+function toggleLog(force){
+  const el = document.getElementById('log');
+  const on = typeof force === 'boolean' ? force : !el.classList.contains('on');
+  el.classList.toggle('on', on);
+  if (on) renderLog();
+}
+
+/* ---------- 从服务端目录导入知识地图 ---------- */
+let pkPath = '';
+let pkParent = null;
+let pkRepo = null;
+
+function apiGet(url){
+  return fetch(url, { headers: { Accept: 'application/json' } })
+    .then(res => {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.json();
+    })
+    .then(res => {
+      if (!res || res.code !== 200) throw new Error((res && res.msg) || '请求失败');
+      return res.data;
+    });
+}
+
+/* ---------- 前端演示用知识仓库数据（不涉及后端） ---------- */
+const DEMO_GIT_KEY = 'lm-demo-git-v1';
+const DEMO_GIT_DEFAULT = {
+  repos: [
+    {
+      id: 'kb-a',
+      name: '示例知识库',
+      path: '服务端 / 示例知识库',
+      fsPath: '示例知识库',
+      branch: 'main',
+      upstream: 'origin/main',
+      ahead: 1,
+      behind: 0,
+      remote: 'origin  git@demo:kb-a.git',
+      files: [
+        { path: '机器学习/基础概念.md', code: ' M', state: 'modified', staged: false },
+        { path: '机器学习/模型评估/常见问题.md', code: 'UU', state: 'conflict', staged: false, conflict: true },
+        { path: '产品研发/新想法.md', code: '??', state: 'untracked', staged: false }
+      ],
+      conflicts: [
+        {
+          path: '机器学习/模型评估/常见问题.md',
+          ours: '# 常见问题\n\n## 本地补充\n\n本节由本地成员添加。\n',
+          theirs: '# 常见问题\n\n## 远程补充\n\n本节由远程协作者添加。\n',
+          working: '# 常见问题\n\n<<<<<<< HEAD\n## 本地补充\n\n本节由本地成员添加。\n=======\n## 远程补充\n\n本节由远程协作者添加。\n>>>>>>> origin/main\n'
+        }
+      ],
+      merging: true,
+      log: [
+        { hash: '9f3c2a1', author: '本地成员', date: '2026-11-25 09:12', subject: '本地：补充常见问题' },
+        { hash: '4b7d0e8', author: '远程协作者', date: '2026-11-24 18:40', subject: '远程：补充常见问题' },
+        { hash: '1a2b3c4', author: 'LinkMind Demo', date: '2026-11-24 10:05', subject: '初始化示例知识库' }
+      ],
+      actions: [
+        { ts: '2026-11-25 09:12:06', action: 'commit', message: '本地：补充常见问题', files: ['机器学习/模型评估/常见问题.md'], ok: true },
+        { ts: '2026-11-25 09:15:31', action: 'pull', message: '', files: ['机器学习/模型评估/常见问题.md'], ok: false }
+      ]
+    },
+    {
+      id: 'kb-b',
+      name: '机器学习知识库',
+      path: '服务端 / 示例知识库/机器学习',
+      fsPath: '示例知识库/机器学习',
+      branch: 'main',
+      upstream: 'origin/main',
+      ahead: 0,
+      behind: 2,
+      remote: 'origin  git@demo:kb-b.git',
+      files: [
+        { path: '模型评估/指标说明.md', code: ' M', state: 'modified', staged: false }
+      ],
+      conflicts: [],
+      merging: false,
+      log: [
+        { hash: 'c81d4f2', author: '远程协作者', date: '2026-11-25 08:30', subject: '补充告警阈值' }
+      ],
+      actions: [
+        { ts: '2026-11-25 08:31:44', action: 'fetch', message: '', files: [], ok: true }
+      ]
+    }
+  ]
+};
+
+function loadGitStore(){
+  try {
+    const raw = localStorage.getItem(DEMO_GIT_KEY);
+    if (raw){
+      const data = JSON.parse(raw);
+      if (data && Array.isArray(data.repos)) return data;
+    }
+  } catch (e) { /* 忽略损坏的演示数据 */ }
+  const data = JSON.parse(JSON.stringify(DEMO_GIT_DEFAULT));
+  saveGitStore(data);
+  return data;
+}
+
+function saveGitStore(data){
+  try { localStorage.setItem(DEMO_GIT_KEY, JSON.stringify(data)); } catch (e) { /* 忽略 */ }
+}
+
+function pkTip(text, isErr){
+  const el = document.getElementById('pkTip');
+  el.textContent = text;
+  el.classList.toggle('err', !!isErr);
+}
+
+function openPicker(){
+  pkPath = '';
+  pkRepo = null;
+  document.getElementById('picker').classList.add('on');
+  loadRepoStep();
+}
+
+function closePicker(){
+  document.getElementById('picker').classList.remove('on');
+}
+
+/* 第一步：选择知识仓库（演示数据，来自前端 localStorage） */
+function loadRepoStep(){
+  pkRepo = null;
+  pkPath = '';
+  pkParent = null;
+  document.getElementById('pkPath').textContent = '选择知识仓库';
+  const list = document.getElementById('pkList');
+  const repos = loadGitStore().repos || [];
+  list.innerHTML = '';
+  document.getElementById('pkUp').disabled = true;
+  document.getElementById('pkOk').disabled = true;
+  if (!repos.length){
+    list.innerHTML = '<div class="pk-empty">还没有知识仓库<br>点击左下角「添加仓库」登记一个演示仓库</div>';
+    pkTip('请先添加知识仓库');
+    return;
+  }
+  repos.forEach(repo => {
+    const row = document.createElement('div');
+    row.className = 'pk-row';
+    row.innerHTML = `<span class="nm">${escapeHtml(repo.name)}</span><span class="meta">${escapeHtml(repo.path || '')}${repo.branch ? ' · ' + escapeHtml(repo.branch) : ''}</span>`;
+    row.onclick = () => { pkRepo = repo; loadPicker(repo.fsPath || ''); };
+    list.appendChild(row);
+  });
+  pkTip(`共 ${repos.length} 个知识仓库，选择后进入目录`);
+}
+
+function pickerUp(){
+  if (!pkRepo || pkParent === null) return;
+  loadPicker(pkParent);
+}
+
+/* 第二步：选择仓库内目录 */
+function loadPicker(path){
+  if (!pkRepo) return loadRepoStep();
+  pkPath = path;
+  pkTip('加载中…');
+  document.getElementById('pkList').innerHTML = '<div class="pk-empty">加载中…</div>';
+  document.getElementById('pkOk').disabled = true;
+  const url = '/api/v1/fs/dirs?path=' + encodeURIComponent(path);
+  apiGet(url).then(data => {
+    renderPicker(data);
+  }).catch(err => {
+    pkParent = null;
+    document.getElementById('pkPath').textContent = '目录读取失败';
+    document.getElementById('pkList').innerHTML = `<div class="pk-empty">${escapeHtml(err.message)}<br>请确认后端服务已启动，且仓库路径有效</div>`;
+    pkTip('目录读取失败', true);
+  });
+}
+
+function renderPicker(data){
+  pkParent = data.parent;
+  const base = (pkRepo && pkRepo.fsPath) || '';
+  const full = data.path || '';
+  const rel = base ? (full === base ? '' : (full.startsWith(base + '/') ? full.slice(base.length + 1) : full)) : full;
+  const segs = rel.split('/').filter(Boolean);
+  const pathEl = document.getElementById('pkPath');
+  pathEl.innerHTML = '';
+  const repoLink = document.createElement('a');
+  repoLink.textContent = '仓库：' + ((pkRepo && pkRepo.name) || '');
+  repoLink.onclick = loadRepoStep;
+  pathEl.appendChild(repoLink);
+  const rootLink = document.createElement('a');
+  rootLink.textContent = '仓库根目录';
+  rootLink.onclick = () => loadPicker(base);
+  pathEl.appendChild(document.createTextNode(' / '));
+  pathEl.appendChild(rootLink);
+  let acc = base;
+  segs.forEach((seg, i) => {
+    acc = acc ? acc + '/' + seg : seg;
+    pathEl.appendChild(document.createTextNode(' / '));
+    if (i === segs.length - 1){
+      const cur = document.createElement('span');
+      cur.className = 'cur';
+      cur.textContent = seg;
+      pathEl.appendChild(cur);
+    } else {
+      const link = document.createElement('a');
+      link.textContent = seg;
+      link.onclick = () => loadPicker(acc);
+      pathEl.appendChild(link);
+    }
+  });
+  const list = document.getElementById('pkList');
+  list.innerHTML = '';
+  if (!data.dirs.length){
+    list.innerHTML = '<div class="pk-empty">当前目录没有子目录，可直接导入此目录</div>';
+  } else {
+    data.dirs.forEach(dir => {
+      const row = document.createElement('div');
+      row.className = 'pk-row';
+      row.innerHTML = `<span class="nm">${escapeHtml(dir.name)}</span><span class="meta">${dir.mdCount} 篇文档${dir.hasChildren ? ' · 含子目录' : ''}</span>`;
+      row.onclick = () => loadPicker(dir.path);
+      list.appendChild(row);
+    });
+  }
+  document.getElementById('pkUp').disabled = (data.path || '') === base || data.parent === null;
+  document.getElementById('pkOk').disabled = false;
+  pkTip(`将把「${data.name}」作为区块与根节点，含 ${data.mdCount} 篇文档、${data.dirs.length} 个子目录`);
+}
+
+function mdProp(p){
+  return { label: p.label, doc: true, note: { c: p.content || '', t: [], r: p.path || '' } };
+}
+
+function dirToNode(dir){
+  return {
+    id: newId(),
+    name: dir.name,
+    props: (dir.props || []).map(mdProp),
+    children: (dir.children || []).map(dirToNode)
+  };
+}
+
+function mapFromTree(tree){
+  return {
+    title: tree.name,
+    desc: '知识仓库目录：' + (pkRepo ? pkRepo.name + ' / ' : '') + (tree.path || '根目录'),
+    repo: pkRepo ? { id: pkRepo.id, name: pkRepo.name } : null,
+    props: (tree.props || []).map(mdProp),
+    nodes: (tree.children || []).map(dirToNode)
+  };
+}
+
+function countDirNodes(list){
+  return list.reduce((sum, n) => sum + 1 + countDirNodes(n.children || []), 0);
+}
+
+function confirmImportDir(){
+  const btn = document.getElementById('pkOk');
+  if (btn.disabled || !pkRepo) return;
+  btn.disabled = true;
+  pkTip('正在扫描目录…');
+  const url = '/api/v1/fs/tree?path=' + encodeURIComponent(pkPath);
+  apiGet(url).then(tree => {
+    const map = mapFromTree(tree);
+    if (MAPS.some(m => m.title === map.title)){
+      map.title = pkRepo.name + ' · ' + map.title;
+    }
+    if (MAPS.some(m => m.title === map.title)){
+      pkTip(`已存在同名知识地图「${map.title}」，请选择其他目录或先重命名区块`, true);
+      return;
+    }
+    MAPS.push(map);
+    logOp(`导入知识地图：${map.title}（仓库 ${pkRepo.name}，${countDirNodes(map.nodes)} 个节点）`);
+    closePicker();
+    renderHome();
+    enterMap(MAPS.length - 1);
+  }).catch(err => {
+    pkTip('导入失败：' + err.message, true);
+  }).finally(() => { btn.disabled = false; });
+}
+
+/* ---------- 知识仓库登记（前端演示） ---------- */
+function openRepoDlg(){
+  document.getElementById('repoDlg').classList.add('on');
+  document.getElementById('repoName').value = '';
+  document.getElementById('repoPath').value = '';
+  document.getElementById('repoErr').textContent = '';
+  const candidates = [
+    { name: '示例知识库', fsPath: '示例知识库' },
+    { name: '机器学习知识库', fsPath: '示例知识库/机器学习' }
+  ];
+  const wrap = document.getElementById('repoCandWrap');
+  wrap.innerHTML = '<div class="mini-empty" style="margin-bottom:6px">演示候选仓库（点击填入）</div>'
+    + candidates.map((it, i) => `<div class="cand" data-i="${i}"><b>${escapeHtml(it.name)}</b><span>${escapeHtml(it.fsPath)}</span></div>`).join('');
+  wrap.querySelectorAll('.cand').forEach(el => {
+    el.onclick = () => {
+      const item = candidates[Number(el.dataset.i)];
+      document.getElementById('repoName').value = item.name;
+      document.getElementById('repoPath').value = item.fsPath;
+    };
+  });
+}
+
+function closeRepoDlg(){
+  document.getElementById('repoDlg').classList.remove('on');
+}
+
+function submitRepo(){
+  const name = document.getElementById('repoName').value.trim();
+  const fsPath = document.getElementById('repoPath').value.trim().replace(/^\/+|\/+$/g, '');
+  const errEl = document.getElementById('repoErr');
+  if (!name){ errEl.textContent = '请填写仓库名称'; return; }
+  const store = loadGitStore();
+  if (store.repos.some(r => r.name === name)){ errEl.textContent = '已存在同名知识仓库'; return; }
+  store.repos.push({
+    id: 'repo-' + Date.now().toString(36),
+    name,
+    path: '服务端 / ' + (fsPath || '知识库根目录'),
+    fsPath,
+    branch: 'main',
+    upstream: 'origin/main',
+    ahead: 0,
+    behind: 0,
+    remote: 'origin（前端演示未配置）',
+    files: [],
+    conflicts: [],
+    merging: false,
+    log: [],
+    actions: []
+  });
+  saveGitStore(store);
+  logOp('添加知识仓库：' + name + '（前端演示）');
+  closeRepoDlg();
+  if (document.getElementById('picker').classList.contains('on')) loadRepoStep();
+}
+
+function doExport(){
+  const payload = { app: 'LinkMind', version: 1, exportedAt: new Date().toISOString(), maps: MAPS };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'linkmind-maps.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  logOp(`导出数据：${MAPS.length} 张地图`);
+}
+
+/* ---------- 知识地图增删改 ---------- */
+function openMapModal(index){
+  editIndex = index;
+  const isEdit = index >= 0;
+  const m = isEdit ? MAPS[index] : { title: '', desc: '' };
+  openModal({
+    title: isEdit ? '编辑知识地图' : '新建知识地图',
+    body: `<label>地图名称</label>
+      <input id="mTitle" maxlength="30" value="${escapeHtml(m.title)}" placeholder="例如：机器学习基础">
+      <label>地图描述</label>
+      <textarea id="mDesc" maxlength="80" placeholder="一句话说明这张脑图">${escapeHtml(m.desc || '')}</textarea>`,
+    okText: '保存',
+    onOk(){
+      const title = document.getElementById('mTitle').value.trim();
+      const desc = document.getElementById('mDesc').value.trim();
+      if (!title) return '请填写地图名称';
+      if (title.length > 30) return '地图名称不能超过 30 个字';
+      if (MAPS.some((x, i) => x.title === title && i !== editIndex)) return '已存在同名知识地图';
+      if (editIndex >= 0){
+        MAPS[editIndex].title = title;
+        MAPS[editIndex].desc = desc;
+      } else {
+        MAPS.push({ title, desc, props: [], nodes: [] });
+      }
+      logOp((editIndex >= 0 ? '修改地图：' : '新建地图：') + title);
+      renderHome();
+      return null;
+    }
+  });
+  focusLater('mTitle');
+}
+
+function askDeleteMap(index){
+  const m = MAPS[index];
+  openModal({
+    title: '删除知识地图',
+    body: `<div style="font-size:13px;line-height:1.8;color:#4a5568">
+      确定删除「<b>${escapeHtml(m.title)}</b>」吗？<br>
+      该地图包含 ${countNodes(m.nodes)} 个节点、${countProps(m)} 条属性，删除后不可恢复。</div>`,
+    okText: '确认删除',
+    okClass: 'mini danger',
+    onOk(){
+      MAPS.splice(index, 1);
+      logOp('删除地图：' + m.title);
+      renderHome();
+      return null;
+    }
+  });
+}
+
+/* ---------- 通用弹窗 ---------- */
+function openModal({ title, body, okText = '保存', okClass = 'mini primary', onOk }){
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  document.getElementById('modalErr').textContent = '';
+  const ok = document.getElementById('modalOk');
+  ok.className = okClass;
+  ok.textContent = okText;
+  ok.onclick = () => {
+    const err = onOk();
+    if (typeof err === 'string' && err){
+      document.getElementById('modalErr').textContent = err;
+      return;
+    }
+    closeModal();
+  };
+  document.getElementById('modal').classList.add('on');
+}
+
+function closeModal(){
+  document.getElementById('modal').classList.remove('on');
+  document.getElementById('modalErr').textContent = '';
+  editIndex = -1;
+}
+
+/* ---------- 布局构建 ---------- */
+function charW(ch, fs){ return /[\u3000-\u9fff\uff01-\uffef]/.test(ch) ? fs : fs * 0.56; }
+
+function wrap(text, w, fs){
+  const maxW = w - 18, lines = [];
+  let line = '', lw = 0;
+  for (const ch of String(text == null ? '' : text)){
+    const cw = charW(ch, fs);
+    if (lw + cw > maxW && line){ lines.push(line); line = ''; lw = 0; }
+    line += ch; lw += cw;
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [''];
+}
+
+function build(){
+  const map = MAPS[cur];
+  const root = { id: ROOT_ID, name: map.title, data: null, isRoot: true, d: 0, parent: null, top: 0, kids: [] };
+  views = [root];
+
+  function mk(src, d, parent, top){
+    ensureArr(src, 'props');
+    ensureArr(src, 'children');
+    const v = { id: src.id, name: src.name, data: src, isRoot: false, d, parent, top, kids: [] };
+    views.push(v);
+    v.kids = src.children.map((c, i) => mk(c, d + 1, v, top));
+    return v;
+  }
+  root.kids = ensureArr(map, 'nodes').map((n, i) => mk(n, 1, root, i));
+
+  let maxD = 0;
+  views.forEach(v => { maxD = Math.max(maxD, v.d); });
+  const xOff = [0];
+  for (let d = 1; d <= maxD; d++) xOff[d] = xOff[d - 1] + NW(d - 1) + GAPX;
+
+  let cursor = 0, minY = Infinity, maxY = -Infinity;
+  views.forEach(v => { v.vis = false; });
+
+  function place(v){
+    v.vis = true;
+    const w = NW(v.d), fs = NFS(v.d);
+    v.w = w;
+    v.lines = wrap(v.name, w, fs);
+    v.h = Math.max(NH(v.d), v.lines.length * (fs + 5) + 12);
+    const kids = (v.kids.length && !collapsed.has(v.id)) ? v.kids : null;
+    if (!kids){
+      v.y = cursor + v.h / 2;
+      cursor += v.h + ROWGAP;
+    } else {
+      const ys = kids.map(place);
+      v.y = (ys[0] + ys[ys.length - 1]) / 2;
+    }
+    minY = Math.min(minY, v.y - v.h / 2);
+    maxY = Math.max(maxY, v.y + v.h / 2);
+    return v.y;
+  }
+  place(root);
+
+  views.forEach(v => { v.off = xOff[v.d] || 0; });
+  bounds = { x: 0, y: minY, w: xOff[maxD] + NW(maxD), h: Math.max(1, maxY - minY) };
+  render();
+}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  vg.innerHTML = '';
+  const q = document.getElementById('q').value.trim();
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // 连线：贝塞尔
+  views.forEach(n => {
+    if (!n.vis || collapsed.has(n.id)) return;
+    n.kids.forEach(c => {
+      if (!c.vis) return;
+      const x1 = n.off + n.w, y1 = n.y, x2 = c.off, y2 = c.y;
+      const mid = (x1 + x2) / 2;
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('d', `M${x1} ${y1} C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`);
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', PALETTE[(c.d === 1 ? c.top : n.top) % PALETTE.length] || '#b9c4d4');
+      p.setAttribute('stroke-opacity', n.d === 0 ? 0.55 : 0.32);
+      p.setAttribute('stroke-width', n.d === 0 ? 2.2 : 1.3);
+      vg.appendChild(p);
+    });
+  });
+
+  // 节点
+  views.forEach(n => {
+    if (!n.vis) return;
+    const color = PALETTE[(n.d === 0 ? 0 : n.top) % PALETTE.length];
+    const g = document.createElementNS(NS, 'g');
+    g.setAttribute('class', 'nt' + (selectedId === n.id ? ' sel' : ''));
+    g.setAttribute('transform', `translate(${n.off || 0},${n.y - n.h / 2})`);
+
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('width', n.w);
+    rect.setAttribute('height', n.h);
+    rect.setAttribute('rx', n.d <= 1 ? 9 : 7);
+    if (n.d === 0){
+      rect.setAttribute('fill', '#1f2d3d');
+    } else if (n.d === 1){
+      rect.setAttribute('fill', color);
+      rect.setAttribute('fill-opacity', '0.92');
+    } else {
+      rect.setAttribute('fill', '#ffffff');
+      rect.setAttribute('stroke', color);
+      rect.setAttribute('stroke-width', '1.2');
+    }
+    if (q && n.name.indexOf(q) >= 0){
+      rect.setAttribute('fill', '#fff7cc');
+      rect.setAttribute('stroke', '#f59e0b');
+      rect.setAttribute('stroke-width', '2');
+      g.setAttribute('class', 'nt hit' + (selectedId === n.id ? ' sel' : ''));
+    }
+    if (selectedId === n.id){
+      const ring = document.createElementNS(NS, 'rect');
+      ring.setAttribute('class', 'sel-ring');
+      ring.setAttribute('x', '-5');
+      ring.setAttribute('y', '-5');
+      ring.setAttribute('width', n.w + 10);
+      ring.setAttribute('height', n.h + 10);
+      ring.setAttribute('rx', (n.d <= 1 ? 9 : 7) + 4);
+      g.appendChild(ring);
+    }
+    g.appendChild(rect);
+
+    const fs = NFS(n.d);
+    const lh = fs + 5;
+    const startY = n.h / 2 - (n.lines.length - 1) * lh / 2;
+    n.lines.forEach((ln, i) => {
+      const t = document.createElementNS(NS, 'text');
+      t.setAttribute('x', n.d <= 1 ? 12 : 9);
+      t.setAttribute('y', startY + i * lh);
+      t.setAttribute('font-size', fs);
+      t.setAttribute('fill', n.d <= 1 ? '#fff' : '#1f2d3d');
+      t.setAttribute('font-weight', n.d <= 1 ? 700 : 400);
+      t.textContent = ln;
+      g.appendChild(t);
+    });
+
+    // 折叠圆点 + 放大热区
+    if (n.kids.length){
+      const dot = document.createElementNS(NS, 'circle');
+      dot.setAttribute('cx', n.w - 11);
+      dot.setAttribute('cy', n.h / 2);
+      dot.setAttribute('r', collapsed.has(n.id) ? 4.5 : 3);
+      dot.setAttribute('fill', collapsed.has(n.id) ? '#f59e0b' : '#cbd5e1');
+      g.appendChild(dot);
+
+      const hit = document.createElementNS(NS, 'circle');
+      hit.setAttribute('cx', n.w - 11);
+      hit.setAttribute('cy', n.h / 2);
+      hit.setAttribute('r', 11);
+      hit.setAttribute('fill', '#fff');
+      hit.setAttribute('fill-opacity', '0');
+      hit.setAttribute('pointer-events', 'all');
+      hit.style.cursor = 'pointer';
+      hit.addEventListener('click', e => { e.stopPropagation(); selectedId = n.id; toggleCollapse(n); refreshSide(); });
+      g.appendChild(hit);
+    }
+
+    g.addEventListener('click', e => {
+      e.stopPropagation();
+      selectedId = n.id;
+      if (n.kids.length) toggleCollapse(n);
+      else render();
+      refreshSide();
+    });
+    g.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectedId = n.id;
+      render();
+      openCtx(n, e);
+    });
+    vg.appendChild(g);
+  });
+
+  applyView();
+}
+
+function applyView(){
+  vg.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`);
+}
+
+function toggleCollapse(n){
+  if (!n.kids.length) return;
+  collapsed.has(n.id) ? collapsed.delete(n.id) : collapsed.add(n.id);
+  build();
+}
+
+function selectNode(id){
+  selectedId = id;
+  render();
+  refreshSide();
+}
+
+/* ---------- 视图操作 ---------- */
+function fit(){
+  if (!bounds) return;
+  const W = stage.clientWidth, H = stage.clientHeight;
+  const pad = 40;
+  let k = Math.min((W - pad * 2) / bounds.w, (H - pad * 2) / bounds.h);
+  k = Math.max(0.12, Math.min(k, 1.05));
+  view = {
+    k,
+    x: (W - bounds.w * k) / 2 - bounds.x * k,
+    y: (H - bounds.h * k) / 2 - bounds.y * k
+  };
+  applyView();
+}
+
+function zoom(f){ view.k = Math.max(0.1, Math.min(2.6, view.k * f)); applyView(); }
+
+function expandAll(){
+  collapsed.clear();
+  build(); fit();
+}
+
+function toLevel(d){
+  collapsed.clear();
+  views.forEach(n => { if (n.d >= d && n.kids.length) collapsed.add(n.id); });
+  build(); fit();
+}
+
+/* ---------- 右键操作菜单 ---------- */
+function closeCtx(){ document.getElementById('ctx').classList.remove('on'); }
+
+function openCtx(n, e){
+  const isRoot = n.d === 0;
+  const ctx = document.getElementById('ctx');
+  ctx.innerHTML = `<div class="ct">${escapeHtml(n.name)}</div>
+    <button data-act="add">新增子节点</button>
+    <button data-act="rename">修改节点</button>
+    <button data-act="del" class="danger" ${isRoot ? 'disabled' : ''}>删除节点</button>
+    <div class="sep"></div>
+    <button data-act="props">属性编辑</button>`;
+  ctx.querySelector('[data-act="add"]').onclick = () => { closeCtx(); askAddChild(); };
+  ctx.querySelector('[data-act="rename"]').onclick = () => { closeCtx(); openRenameNode(); };
+  if (!isRoot) ctx.querySelector('[data-act="del"]').onclick = () => { closeCtx(); askDeleteNode(); };
+  ctx.querySelector('[data-act="props"]').onclick = () => { closeCtx(); openProps(); };
+  ctx.classList.add('on');
+  const r = ctx.getBoundingClientRect();
+  ctx.style.left = Math.max(8, Math.min(e.clientX, window.innerWidth - r.width - 8)) + 'px';
+  ctx.style.top = Math.max(8, Math.min(e.clientY, window.innerHeight - r.height - 8)) + 'px';
+}
+
+function selInfo(){
+  if (cur < 0 || !MAPS[cur] || selectedId == null) return null;
+  const map = MAPS[cur];
+  if (selectedId === ROOT_ID){
+    ensureArr(map, 'props');
+    return { isRoot: true, name: map.title, props: map.props, data: null, path: [map.title], siblings: [] };
+  }
+  const v = views.find(x => !x.isRoot && x.id === selectedId);
+  if (!v) return null;
+  const data = v.data;
+  ensureArr(data, 'props');
+  ensureArr(data, 'children');
+  const path = [];
+  let p = v;
+  while (p){ path.unshift(p.name); p = p.parent; }
+  const sibs = v.parent.isRoot ? ensureArr(map, 'nodes') : ensureArr(v.parent.data, 'children');
+  return {
+    isRoot: false,
+    name: data.name,
+    props: data.props,
+    data,
+    path,
+    siblings: sibs.filter(x => x !== data),
+    view: v
+  };
+}
+
+/* ---------- 右侧属性抽屉 ---------- */
+function openProps(){
+  if (cur < 0) return;
+  if (selectedId == null) selectedId = ROOT_ID;
+  document.getElementById('side').classList.add('on');
+  renderSide();
+}
+
+function refreshSide(){
+  if (document.getElementById('side').classList.contains('on')) renderSide();
+}
+
+function renderSide(){
+  const title = document.getElementById('sideTitle');
+  const body = document.getElementById('sideBody');
+  const info = selInfo();
+  if (!info){
+    title.textContent = '节点属性';
+    body.innerHTML = '<div class="empty">请在脑图中选择节点<br>左键点击节点可展开/收起，右键打开操作菜单</div>';
+    return;
+  }
+  title.textContent = info.name;
+  const path = info.path.map(escapeHtml).join('<span class="sep">/</span>');
+  const props = info.props;
+  body.innerHTML = `
+    <div class="crumb">${path}</div>
+    <h4>属性列表（${props.length}）</h4>
+    ${props.length ? props.map(propRow).join('') : '<div class="empty" style="padding:14px 0">暂无属性，点击下方按钮新增</div>'}
+    <button class="mini wide" onclick="openPropModal(-1)">＋ 新增属性</button>
+    <div class="pTip">右键节点可新增子节点、修改或删除节点${info.isRoot ? '；根节点即地图标题，删除请回首页删除整张地图' : ''}。</div>`;
+}
+
+/* ---------- Git 状态徽标（仅知识仓库导入的区块） ---------- */
+let GIT = { repoId: null, files: {} };
+const GIT_LABEL = { modified: 'M 修改', added: 'A 新增', deleted: 'D 删除', untracked: '? 未跟踪', conflict: 'U 冲突', renamed: 'R 改名', copied: 'C 复制' };
+
+function loadGitStatus(map){
+  const repo = map && map.repo;
+  if (!repo || !repo.id){ GIT = { repoId: null, files: {} }; return; }
+  const target = loadGitStore().repos.find(r => r.id === repo.id);
+  if (!target){ GIT = { repoId: null, files: {} }; return; }
+  const files = {};
+  (target.files || []).forEach(f => { files[f.path] = f; });
+  GIT = { repoId: repo.id, files };
+  refreshSide();
+}
+
+function gitBadge(p){
+  const rel = p && p.note && p.note.r;
+  if (!GIT.repoId || !rel) return '';
+  const item = GIT.files[rel];
+  if (!item) return '';
+  const label = GIT_LABEL[item.state] || item.code;
+  return `<span class="git-badge g-${item.state}" title="Git 状态：${escapeHtml(item.code)}">${escapeHtml(label)}</span>`;
+}
+
+function propRow(p, i){
+  const note = p.note || {};
+  const summary = String(note.c || '').replace(/\s+/g, ' ').trim() || '（空笔记）';
+  const tags = (note.t || []).map(t => `<span class="tag">${escapeHtml(t)}</span>`).join('');
+  return `<div class="prop">
+    <div class="prop-hd">
+      <b title="${escapeHtml(p.label || '属性')}">${escapeHtml(p.label || '属性')}</b>
+      <a onclick="openNotePage(${i})">${p.doc ? '查看文档' : '查看笔记'} →</a>
+    </div>
+    <div class="prop-note" title="${escapeHtml(summary)}">${escapeHtml(summary)}</div>
+    <div class="prop-meta">
+      ${gitBadge(p)}
+      ${tags || '<span class="mini-empty">无标签</span>'}
+      <span class="prop-act">
+        <button onclick="openPropModal(${i})">编辑</button>
+        <button class="danger" onclick="askDeleteProp(${i})">删除</button>
+      </span>
+    </div>
+  </div>`;
+}
+
+function renameSelected(name){
+  const info = selInfo();
+  if (!info) return '请先选择节点';
+  if (!name) return '节点名称不能为空';
+  if (name.length > 30) return '节点名称不能超过 30 个字';
+  if (!info.isRoot && info.siblings.some(x => x.name === name)) return '同级已存在同名节点';
+  if (info.isRoot) MAPS[cur].title = name;
+  else info.data.name = name;
+  logOp('修改节点：' + info.name + ' → ' + name);
+  build();
+  refreshSide();
+  return null;
+}
+
+function openRenameNode(){
+  const info = selInfo();
+  if (!info) return;
+  openModal({
+    title: '修改节点',
+    body: `<label>节点名称</label>
+      <input id="fRename" maxlength="30" value="${escapeHtml(info.name)}" placeholder="节点名称">`,
+    okText: '保存',
+    onOk(){
+      return renameSelected(document.getElementById('fRename').value.trim());
+    }
+  });
+  focusLater('fRename');
+}
+
+function askAddChild(){
+  const info = selInfo();
+  if (!info) return;
+  const parentName = info.isRoot ? MAPS[cur].title : info.data.name;
+  openModal({
+    title: '新增子节点',
+    body: `<label>父节点</label>
+      <div style="font-size:13px;color:#4a5568;margin-bottom:4px">${escapeHtml(parentName)}</div>
+      <label>节点名称</label>
+      <input id="fNode" maxlength="30" placeholder="例如：需求洞察">`,
+    okText: '创建',
+    onOk(){
+      const name = document.getElementById('fNode').value.trim();
+      if (!name) return '请填写节点名称';
+      if (name.length > 30) return '节点名称不能超过 30 个字';
+      const list = info.isRoot ? ensureArr(MAPS[cur], 'nodes') : ensureArr(info.data, 'children');
+      if (list.some(x => x.name === name)) return '同级已存在同名节点';
+      const node = { id: newId(), name, props: [], children: [] };
+      list.push(node);
+      logOp('新增节点：' + name + '（父节点 ' + parentName + '）');
+      collapsed.delete(info.isRoot ? ROOT_ID : info.data.id);
+      selectedId = node.id;
+      build();
+      fit();
+      openProps();
+      return null;
+    }
+  });
+  focusLater('fNode');
+}
+
+function askDeleteNode(){
+  const info = selInfo();
+  if (!info || info.isRoot) return;
+  const total = countSubtree(info.data);
+  openModal({
+    title: '删除节点',
+    body: `<div style="font-size:13px;line-height:1.8;color:#4a5568">
+      确定删除「<b>${escapeHtml(info.data.name)}</b>」吗？<br>
+      将同时删除其 ${total - 1} 个子孙节点及全部属性，删除后不可恢复。</div>`,
+    okText: '确认删除',
+    okClass: 'mini danger',
+    onOk(){
+      const v = info.view;
+      const parent = v.parent;
+      const list = parent.isRoot ? ensureArr(MAPS[cur], 'nodes') : ensureArr(parent.data, 'children');
+      const idx = list.indexOf(info.data);
+      if (idx >= 0) list.splice(idx, 1);
+      logOp('删除节点：' + info.data.name + '（含 ' + (total - 1) + ' 个子孙）');
+      collapsed.delete(info.data.id);
+      selectedId = parent.isRoot ? ROOT_ID : parent.id;
+      build();
+      refreshSide();
+      return null;
+    }
+  });
+}
+
+/* ---------- 属性 ---------- */
+function openPropModal(idx){
+  const info = selInfo();
+  if (!info) return;
+  const editing = idx >= 0;
+  const p = editing ? info.props[idx] : null;
+  const note = p ? (p.note || {}) : { c: '', t: [], r: '' };
+  openModal({
+    title: editing ? '编辑属性' : '新增属性',
+    body: `<label>属性名</label>
+      <input id="fLabel" maxlength="30" value="${escapeHtml(p ? p.label : '')}" placeholder="例如：核心概念">
+      <label>笔记内容（≤500 字）</label>
+      <textarea id="fNote" maxlength="500" placeholder="填写笔记正文">${escapeHtml(note.c || '')}</textarea>
+      <label>标签（逗号分隔）</label>
+      <input id="fTags" value="${escapeHtml((note.t || []).join('，'))}" placeholder="例如：算法，基础">
+      <label>备注</label>
+      <input id="fRemark" maxlength="60" value="${escapeHtml(note.r || '')}" placeholder="可选">`,
+    okText: editing ? '保存' : '创建',
+    onOk(){
+      const label = document.getElementById('fLabel').value.trim();
+      const c = document.getElementById('fNote').value.trim();
+      const tagsRaw = document.getElementById('fTags').value;
+      const r = document.getElementById('fRemark').value.trim();
+      if (!label) return '请填写属性名';
+      if (label.length > 30) return '属性名不能超过 30 个字';
+      if (c.length > 500) return '笔记内容不能超过 500 字';
+      const t = tagsRaw.split(/[,，、\s]+/).map(s => s.trim()).filter(Boolean);
+      const prop = { label, note: { c, t, r } };
+      if (editing) info.props[idx] = prop;
+      else info.props.push(prop);
+      logOp((editing ? '修改属性：' : '新增属性：') + label + '（节点 ' + info.name + '）');
+      renderSide();
+      return null;
+    }
+  });
+  focusLater('fLabel');
+}
+
+function askDeleteProp(idx){
+  const info = selInfo();
+  if (!info || !info.props[idx]) return;
+  const p = info.props[idx];
+  openModal({
+    title: '删除属性',
+    body: `<div style="font-size:13px;line-height:1.8;color:#4a5568">确定删除属性「<b>${escapeHtml(p.label || '属性')}</b>」及其笔记内容吗？</div>`,
+    okText: '确认删除',
+    okClass: 'mini danger',
+    onOk(){
+      info.props.splice(idx, 1);
+      logOp('删除属性：' + (p.label || '属性') + '（节点 ' + info.name + '）');
+      renderSide();
+      return null;
+    }
+  });
+}
+
+function propMarkdown(p){
+  const note = p.note || {};
+  const lines = [`# ${p.label || '笔记'}`, '', note.c || '（暂无内容）'];
+  if (note.t && note.t.length) lines.push('', '**标签**：' + note.t.join('、'));
+  if (note.r) lines.push('', '**备注**：' + note.r);
+  return lines.join('\n');
+}
+
+function openNotePage(idx){
+  const info = selInfo();
+  if (!info || !info.props[idx]) return;
+  const p = info.props[idx];
+  const payload = { title: p.label || '笔记', node: info.path.join(' > '), md: propMarkdown(p) };
+  window.open('demo-note.html#' + encodeURIComponent(JSON.stringify(payload)), '_blank');
+}
+
+function closeSide(){ document.getElementById('side').classList.remove('on'); }
+
+/* ---------- 画布交互 ---------- */
+function bindStage(){
+  let drag = null;
+  stage.addEventListener('mousedown', e => {
+    if (!document.getElementById('home').classList.contains('off')) return;
+    if (e.button !== 0) return;
+    drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y };
+    stage.classList.add('drag');
+  });
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    view.x = drag.vx + (e.clientX - drag.x);
+    view.y = drag.vy + (e.clientY - drag.y);
+    applyView();
+  });
+  window.addEventListener('mouseup', () => { drag = null; stage.classList.remove('drag'); });
+
+  document.addEventListener('mousedown', e => {
+    if (!(e.target.closest && e.target.closest('#ctx'))) closeCtx();
+  });
+  document.addEventListener('contextmenu', e => {
+    if (!(e.target.closest && e.target.closest('g.nt'))) closeCtx();
+  });
+
+  stage.addEventListener('wheel', e => {
+    if (!document.getElementById('home').classList.contains('off')) return;
+    e.preventDefault();
+    closeCtx();
+    const f = e.deltaY < 0 ? 1.12 : 0.89;
+    const rect = stage.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const nk = Math.max(0.1, Math.min(2.6, view.k * f));
+    view.x = mx - (mx - view.x) * (nk / view.k);
+    view.y = my - (my - view.y) * (nk / view.k);
+    view.k = nk;
+    applyView();
+  }, { passive: false });
+
+  const q = document.getElementById('q');
+  q.addEventListener('input', () => {
+    if (cur < 0) return;
+    const val = q.value.trim();
+    if (!val){ build(); return; }
+    collapsed.clear();
+    views.forEach(n => { if (n.d >= 1 && n.kids.length) collapsed.add(n.id); });
+    views.forEach(n => {
+      if (n.name.indexOf(val) >= 0){
+        let p = n.parent;
+        while (p){ collapsed.delete(p.id); p = p.parent; }
+        if (n.kids.length) collapsed.delete(n.id);
+      }
+    });
+    build();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  svg = document.getElementById('svg');
+  vg = document.getElementById('view');
+  stage = document.getElementById('stage');
+  renderHome();
+  renderLog();
+  bindStage();
+
+  document.getElementById('picker').addEventListener('click', e => {
+    if (e.target === document.getElementById('picker')) closePicker();
+  });
+
+  // 从 Git 管理页返回时刷新徽标（演示数据存在 localStorage）
+  window.addEventListener('focus', () => {
+    if (cur >= 0 && MAPS[cur]) loadGitStatus(MAPS[cur]);
+  });
+
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('repoDlg').classList.contains('on')){
+      if (e.key === 'Escape'){ e.preventDefault(); closeRepoDlg(); }
+      return;
+    }
+    if (document.getElementById('picker').classList.contains('on')){
+      if (e.key === 'Escape'){ e.preventDefault(); closePicker(); }
+      return;
+    }
+    const modal = document.getElementById('modal');
+    if (!modal.classList.contains('on')) return;
+    if (e.key === 'Escape'){ e.preventDefault(); closeModal(); return; }
+    if (e.key === 'Enter'){
+      const inTextarea = e.target && e.target.tagName === 'TEXTAREA';
+      if (inTextarea && !(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      document.getElementById('modalOk').click();
+    }
+  });
+});
+</script>
+</body>
+</html>

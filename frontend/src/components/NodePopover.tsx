@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react';
-import { Popover } from 'antd';
+import { useEffect } from 'react';
+import { Empty, Popover } from 'antd';
 import { useStore } from '@/store';
 import { NoteList } from './NoteList';
 
@@ -11,81 +11,47 @@ interface NodePopoverProps {
 }
 
 export function NodePopover({ nodeId, x, y, onClose }: NodePopoverProps) {
-  const {
-    currentNodes,
-    addListItem,
-    updateListItem,
-    deleteListItem,
-    closeDrawer,
-  } = useStore();
-
-  const [visible, setVisible] = useState(true);
-  const popoverRef = useRef<HTMLDivElement>(null);
-
-  const targetNode = currentNodes.find((node) => node.id === nodeId);
+  const currentNode = useStore((state) => state.currentNodes.find((node) => node.id === nodeId));
+  const addListItem = useStore((state) => state.addListItem);
+  const updateListItem = useStore((state) => state.updateListItem);
+  const deleteListItem = useStore((state) => state.deleteListItem);
 
   useEffect(() => {
-    closeDrawer();
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setVisible(false);
-        setTimeout(onClose, 200);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [onClose, closeDrawer]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setVisible(false);
-      setTimeout(onClose, 200);
-    };
-
+    const handleScroll = () => onClose();
     const container = document.querySelector('.x6-graph');
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-    return undefined;
+    if (!container) return undefined;
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
   }, [onClose]);
 
-  const content = (
-    <div ref={popoverRef} style={{ width: '320px', maxHeight: '400px', overflowY: 'auto' }}>
+  const content = currentNode ? (
+    <div className="lm-popover-body">
+      <div className="lm-popover-title">{currentNode.name}</div>
       <NoteList
-        items={targetNode?.children || []}
+        items={currentNode.children}
         parentNodeId={nodeId}
         onAdd={addListItem}
         onEdit={updateListItem}
         onDelete={deleteListItem}
       />
     </div>
+  ) : (
+    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="节点不存在或已被删除" style={{ width: 240 }} />
   );
 
   return (
     <Popover
       content={content}
-      visible={visible}
-      onVisibleChange={(v) => {
-        setVisible(v);
-        if (!v) {
-          setTimeout(onClose, 200);
-        }
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
       }}
-      placement="rightBottom"
+      placement="rightTop"
       trigger="click"
+      arrow={false}
+      destroyTooltipOnHide
     >
-      <div
-        style={{
-          position: 'absolute',
-          left: x,
-          top: y,
-          width: 0,
-          height: 0,
-        }}
-      />
+      <div className="lm-popover-anchor" style={{ left: x, top: y }} />
     </Popover>
   );
 }

@@ -1,55 +1,51 @@
 import { useEffect } from 'react';
-import { Drawer, Button } from 'antd';
-import { CloseOutlined } from '@ant-design/icons';
+import { Drawer, Empty, Tag } from 'antd';
 import { useStore } from '@/store';
 import { NoteList } from './NoteList';
 
 export function NodeDrawer() {
-  const {
-    drawerVisible,
-    drawerTargetNodeId,
-    closeDrawer,
-    currentNodes,
-    addListItem,
-    updateListItem,
-    deleteListItem,
-    closePopover,
-  } = useStore();
+  const drawerVisible = useStore((state) => state.drawerVisible);
+  const drawerTargetNodeId = useStore((state) => state.drawerTargetNodeId);
+  const currentNodes = useStore((state) => state.currentNodes);
+  const closeDrawer = useStore((state) => state.closeDrawer);
+  const closePopover = useStore((state) => state.closePopover);
+  const addListItem = useStore((state) => state.addListItem);
+  const updateListItem = useStore((state) => state.updateListItem);
+  const deleteListItem = useStore((state) => state.deleteListItem);
 
-  const targetNode = currentNodes.find((node) => node.id === drawerTargetNodeId);
+  const targetNode = currentNodes.find((node) => node.id === drawerTargetNodeId) ?? null;
 
   useEffect(() => {
-    if (drawerVisible) {
-      closePopover();
-    }
+    if (drawerVisible) closePopover();
   }, [drawerVisible, closePopover]);
-
-  const handleClose = () => {
-    closeDrawer();
-  };
 
   return (
     <Drawer
-      title={targetNode?.name || '节点详情'}
+      title={targetNode ? targetNode.name : '节点详情'}
       placement="right"
-      onClose={handleClose}
+      onClose={closeDrawer}
       open={drawerVisible}
-      width={420}
-      extra={
-        <Button
-          type="text"
-          icon={<CloseOutlined />}
-          onClick={handleClose}
-        />
-      }
+      width="min(420px, 94vw)"
+      destroyOnClose
     >
-      <NoteList
-        items={targetNode?.children || []}
-        parentNodeId={drawerTargetNodeId || ''}
-        onAdd={addListItem}
-        onEdit={updateListItem}
-        onDelete={deleteListItem}
-      />
+      {targetNode ? (
+        <>
+          <div className="lm-drawer-meta">
+            <Tag color="blue">{targetNode.children.length} 条笔记</Tag>
+            <Tag>{targetNode.dependencies.length} 个依赖</Tag>
+            <span>创建于 {targetNode.createTime}</span>
+          </div>
+          <NoteList
+            items={targetNode.children}
+            parentNodeId={targetNode.id}
+            onAdd={addListItem}
+            onEdit={updateListItem}
+            onDelete={deleteListItem}
+          />
+        </>
+      ) : (
+        <Empty description="节点不存在或已被删除" />
+      )}
     </Drawer>
   );
 }

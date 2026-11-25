@@ -20,16 +20,38 @@ from routes.graph import graph_router
 from routes.expand import expand_router
 from routes.search import search_router
 from routes.cluster import cluster_router
+from routes.fs import fs_router
+from routes.git import git_router
 from database.init_indexes import init_database_indexes
+from database.neo4j_connection import close_driver
+from database.pg import close_pg, init_pg
 from contextlib import asynccontextmanager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动时初始化数据库索引
-    await init_database_indexes()
+    # 启动时初始化数据库索引；数据库未就绪时降级运行，不阻塞服务启动
+    try:
+        await init_database_indexes()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("数据库索引初始化失败，服务将以降级模式启动: %s", exc)
+    # PostgreSQL 是主数据存储；不可用时降级启动，由具体接口返回明确错误
+    try:
+        await init_pg()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("PostgreSQL 初始化失败，服务将以降级模式启动: %s", exc)
     yield
-    # 关闭时清理资源
+    try:
+        await close_driver()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("关闭 Neo4j 连接失败: %s", exc)
+    try:
+        await close_pg()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("关闭 PostgreSQL 连接失败: %s", exc)
 
 
 app = FastAPI(
@@ -59,21 +81,35 @@ app.include_router(graph_router, prefix="/api/v1", tags=["Graph"])
 app.include_router(expand_router, prefix="/api/v1", tags=["Expand"])
 app.include_router(search_router, prefix="/api/v1", tags=["Search"])
 app.include_router(cluster_router, prefix="/api/v1/cluster", tags=["Cluster"])
+app.include_router(fs_router, prefix="/api/v1", tags=["Filesystem"])
+app.include_router(git_router, prefix="/api/v1", tags=["Git"])
 
-frontend_dist_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend", "dist")
-frontend_dev_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "..", "frontend")
-
-if os.path.exists(frontend_dist_path):
-    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
-else:
-    app.mount("/", StaticFiles(directory=frontend_dev_path, html=True), name="frontend")
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIST = os.path.join(BASE_DIR, "frontend", "dist")
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 
 @app.get("/api/")
 async def api_root():
     return success_response(data={"message": "LinkMind API is running"})
+
+
+if os.path.isdir(FRONTEND_DIST):
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")
+else:
+
+    @app.get("/")
+    async def root():
+        return success_response(
+            data={
+                "message": "LinkMind API is running",
+                "frontend": "前端静态资源未构建，请执行 npm run build 生成 frontend/dist",
+            }
+        )
+
+
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 if __name__ == "__main__":

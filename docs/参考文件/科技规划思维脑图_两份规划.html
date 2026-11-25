@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>科技规划思维脑图</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Microsoft YaHei","PingFang SC",sans-serif;background:#f5f7fa;color:#1f2d3d;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+#bar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#fff;border-bottom:1px solid #e3e8ef;flex-wrap:wrap;z-index:5}
+#tabs{display:flex;gap:8px}
+.tab{padding:7px 16px;border-radius:18px;border:1px solid #d7dee8;background:#fff;cursor:pointer;font-size:13px;color:#4a5568}
+.tab.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+.sp{flex:1}
+button.mini{padding:6px 12px;font-size:12px;border-radius:6px;border:1px solid #d7dee8;background:#fff;cursor:pointer;color:#4a5568}
+button.mini:hover{border-color:#1d4ed8;color:#1d4ed8}
+#q{padding:6px 10px;border:1px solid #d7dee8;border-radius:6px;font-size:12px;width:170px;outline:none}
+#q:focus{border-color:#1d4ed8}
+#hint{font-size:12px;color:#8a94a6}
+#stage{flex:1;position:relative;overflow:hidden;cursor:grab}
+#stage.drag{cursor:grabbing}
+svg{width:100%;height:100%;display:block}
+.nt{cursor:pointer}
+.nt text{dominant-baseline:middle}
+.nt rect{filter:drop-shadow(0 1px 2px rgba(15,23,42,.10))}
+.hit{filter:drop-shadow(0 0 3px #f59e0b)}
+#tip{position:absolute;pointer-events:none;background:#1f2d3d;color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;opacity:0;transition:opacity .15s;max-width:420px;line-height:1.5}
+</style>
+</head>
+<body>
+<div id="bar">
+  <div id="tabs"></div>
+  <span id="hint">点击节点可折叠展开 · 滚轮缩放 · 拖拽平移</span>
+  <span class="sp"></span>
+  <input id="q" placeholder="搜索关键词">
+  <button class="mini" onclick="expandAll()">全部展开</button>
+  <button class="mini" onclick="toLevel(2)">收起到二级</button>
+  <button class="mini" onclick="fit()">适应屏幕</button>
+  <button class="mini" onclick="zoom(1.2)">放大</button>
+  <button class="mini" onclick="zoom(0.83)">缩小</button>
+</div>
+<div id="stage">
+  <svg id="svg"><g id="view"></g></svg>
+  <div id="tip"></div>
+</div>
+<script>
+const MAPS = [{"title": "十五五规划（2026—2030）", "root": {"t": "吉林农商银行金融科技“十五五”规划（2026—2030）", "c": [{"t": "一、现状与形势", "c": [{"t": "“十四五”成就", "c": [{"t": "农芯工程建成：新核心·新信贷·新总账"}, {"t": "业务中台成型：客户·产品·合约·营销"}, {"t": "数据中台：湖仓一体＋监管集市＋统一采集"}, {"t": "技术：两地三中心·生产云·行社云·开发测试云"}, {"t": "治理：金融科技部＋八大中心；科技队伍288人"}]}, {"t": "外部形势", "c": [{"t": "监管：金融科技规划·数字化转型意见·风险出清"}, {"t": "行业：大模型与智能体·信创进入深水区"}, {"t": "技术：云原生·数据要素·IPv6双栈"}]}, {"t": "内部形势", "c": [{"t": "改革化险：69家机构合并·48家村行并表"}, {"t": "基础：客户550万·手机银行505万·网银89万"}, {"t": "短板：重复建设·口径不一·村银科技风险"}]}]}, {"t": "二、愿景与目标", "c": [{"t": "总体愿景", "c": [{"t": "全景感知·全域智能·全栈可控"}, {"t": "三个银行：农民致富·微企成长·居民兴业"}]}, {"t": "业务赋能·七项", "c": [{"t": "业务中台：客户中心＋产品中心，双轮升级"}, {"t": "智能营销中台：全渠道千人千面"}, {"t": "智慧网点：养老·文体·乡村三类特色"}, {"t": "场景生态：消费·文旅·商户客群"}, {"t": "金融＋政务：社保医保公积金一站办"}, {"t": "渠道协同：线上线下一体化闭环"}, {"t": "统一风控模型：贷前贷中贷后全覆盖"}]}, {"t": "技术架构·六项", "c": [{"t": "全栈信创替代完成率100%"}, {"t": "重要系统应用级双活，7×24连续运行"}, {"t": "AI渗透营销·风控·服务·运营主场景"}, {"t": "数据应用与数字化决策广泛应用"}, {"t": "数据资产化运营体系全面成熟"}, {"t": "研发-应用-运维-安全全链条自主可控"}]}, {"t": "管理效能·四项", "c": [{"t": "村镇银行科技风险彻底清零"}, {"t": "主动防御·智能运营实战化安全体系"}, {"t": "反诈：被动处置→主动预警提前拦截"}, {"t": "数据安全与隐私保护·信创安全适配"}]}]}, {"t": "三、重点工程与核心任务", "c": [{"t": "农芯V1.0投产与V2.0跃升", "c": [{"t": "投产：SIT＋UAT·三轮全链路演练·关键回退节点"}, {"t": "切换：分步切换·并行验证·跟账比对"}, {"t": "价值释放：客户·产品·信贷·决策·安全·战略六层"}, {"t": "演进：业务中台＋能力中心 → AI中台＋智能体"}, {"t": "V2.0九层架构：新增AI中台层·智能体编排·智能交互入口"}]}, {"t": "村镇银行托管系统回迁", "c": [{"t": "先并表后回迁：48家并表·13套报送·清算统一入口"}, {"t": "数据治理：45家客户主数据全量探查与合并"}, {"t": "业务承接：非标清理·存款按原利率·卡同BIN·贷款账号不变"}, {"t": "三阶段：准备→实施（三轮UAT）→投产（先试点后推广）"}]}, {"t": "全栈信创工程落地", "c": [{"t": "四层改造：硬件国产化·基础软件全栈·应用适配·国密安全"}, {"t": "从“能用”到“好用”：性能基线·外设兼容·业务连续"}, {"t": "生态：技术栈准入退出·软硬件资源池·四级兼容认证"}, {"t": "阶段：2026-27基础攻坚·2028-29全面深化·2030生态成熟"}]}, {"t": "IT基础设施持续完善", "c": [{"t": "两地三中心：关键系统同城双活·异地应用级灾备"}, {"t": "机房收敛：科技大厦＋北湖·两处租赁机房自然消亡"}, {"t": "网络：IPv6升级·双栈运行"}, {"t": "运行：绿色机房·7×24保障·APM链路分析"}]}, {"t": "AI基础设施与智能体", "c": [{"t": "算力：私有化训推一体集群＋算力管理平台＋算力中台"}, {"t": "语料：金融语料库·清洗标注·知识图谱"}, {"t": "Agent：感知-规划-执行-反馈·技能库·记忆库"}, {"t": "客服智能体：问答式客服 → 一对一金融管家"}, {"t": "信贷智能体：OCR＋大模型·尽调初稿·人机协同审贷"}, {"t": "研发运维智能体：AI开发替代率30%以上"}]}, {"t": "数据中台持续推进", "c": [{"t": "湖仓一体：存算分离·批流一体·毫秒级查询"}, {"t": "五大集市：营销·风险·运营·决策·监管"}, {"t": "指标中间层：一次加工·多方复用"}, {"t": "数据门户：查报表做分析订阅一站"}, {"t": "统一监管报送平台·DataOps·Data＋AI"}]}, {"t": "营销与考核赋能", "c": [{"t": "新客管：ECIF＋CRM＋客户价值分析整合"}, {"t": "企微生态：获客-活客-产品工具集"}, {"t": "营销闭环：洞察-策略-触达-转化-反馈"}, {"t": "绩效：数据T+1展示·考核按月生成·重建人力系统"}]}, {"t": "深化反诈技术", "c": [{"t": "警银联动：公安厅接口·联合实验室·线索下发"}, {"t": "模型：黑样本训练·分级预警·模型＋人工复核"}, {"t": "多源数据：运营商·舆情线索·跨机构共享"}]}, {"t": "科技自立自强", "c": [{"t": "定位：成本中心 → 价值创造中心"}, {"t": "双态：稳态瀑布＋敏态敏捷（DevOps·DataOps）"}, {"t": "自研平台·知识产权·自主研发项目占比提升"}]}]}, {"t": "四、科技治理与保障", "c": [{"t": "治理体系", "c": [{"t": "决策：金数委管战略级·常规项目下放科技部"}, {"t": "立项：分类立项·核心紧急绿色通道·需求归口"}, {"t": "管控：架构评审＋架构委员会集体审议"}, {"t": "后评价：质量·效率·成本·赋能·风险五维"}]}, {"t": "运行体系·一部三中心", "c": [{"t": "科技部总管·研发生产车间·测试守门员·运维守护者"}, {"t": "质量左移·联合复盘·投资组合管理"}]}, {"t": "人才培养", "c": [{"t": "领军人才“一人一策”"}, {"t": "雏鹰计划：业务通识＋项目实战"}, {"t": "行社并入人员：摸底·编入·专项培训"}]}, {"t": "研发模式", "c": [{"t": "三类系统：核心可控·简单自主维护·特色自研"}, {"t": "资源与工作可视化看板"}, {"t": "业技双向派驻·业技融合团队"}]}]}, {"t": "五、实施路径与里程碑", "c": [{"t": "2026 收官启航：三大工程收尾·村银回迁清零·AI规划发布"}, {"t": "2027 攻坚重构：机房退租·信创覆盖80%·AI中台成型·营销绩效闭环"}, {"t": "2028 智能融合：全栈信创100%·业务智能体上线·异地灾备演练"}, {"t": "2029-2030 成熟引领：Xaction架构成熟·形成行业数字化标杆"}]}]}}, {"title": "三年规划（2024—2026）", "root": {"t": "吉林省农村信用社科技发展三年规划（2024—2026）", "c": [{"t": "一、科技建设规划总览", "c": [{"t": "外部因素", "c": [{"t": "监管：金融科技发展规划（2022-2025）·银保监数字化转型指导意见（2022）"}, {"t": "行业：全系统全业务全链路转型·开放生态化"}, {"t": "同业：多家银行把数字化作为战略方向"}]}, {"t": "内部因素", "c": [{"t": "发展战略：改革化险·提质增效·十大工程"}, {"t": "架构要求：3年时间·应用上云＋服务下沉"}, {"t": "问题·应用：烟囱建设·客户信息分散·无统一授信"}, {"t": "问题·数据：标准缺失·集市不丰·服务弱"}, {"t": "问题·技术：云原生滞后·容灾滞后"}, {"t": "问题·安全：开发安全空白·安全运营未建"}, {"t": "问题·治理：团队小·激励不足·行社自建管理弱"}]}, {"t": "转型目标", "c": [{"t": "业务：“五提升一可控”"}, {"t": "技术：“五提升”——弹性·灵活·敏捷·稳定·可控"}, {"t": "管理：“三安全一融合”"}]}, {"t": "总体框架", "c": [{"t": "技术与数据双轮驱动"}, {"t": "三大中台：业务中台·数据中台·技术中台"}, {"t": "四大架构＋科技管理共同转型"}]}, {"t": "Xaction六化架构", "c": [{"t": "X：凝聚全员力量"}, {"t": "Agility 敏捷化·Cloudification 云化"}, {"t": "Trustworthiness 可信赖·Intelligence 智能化"}, {"t": "Openess 开放化·Normalization 规范化"}]}, {"t": "2345行动", "c": [{"t": "2驱动：业务·数据"}, {"t": "3工程：坚城·群峰·连枝"}, {"t": "4架构：应用·数据·安全·技术"}, {"t": "5能力：产品·运营·风控·数据·创新"}]}]}, {"t": "二、架构转型工作思路", "c": [{"t": "应用架构", "c": [{"t": "原则：以客户为中心·企业级·平台化·复用·服务化·行社差异"}, {"t": "现状：140套系统·6套托管第三方·架构老化"}, {"t": "目标：8层28域（基础支撑→产品服务→运营支撑→集成→共享能力→场景整合→生态渠道→管理决策）"}, {"t": "策略：新建48·整合15·优化23·重建12"}, {"t": "重点：中台建设·行社特色“接口＋数据”·村银三步走回迁"}]}, {"t": "数据架构", "c": [{"t": "原则：业务需求·安全·标准化·质量·资产化·服务化"}, {"t": "现状：湖仓基础已有·数据应用匮乏·服务能力弱"}, {"t": "目标：10分区（技术底座·生产·采集·整合·集市·服务·应用·门户·研发·管控）"}, {"t": "策略：底座·采集·整合·集市·服务·应用·门户·开发·管控九条"}, {"t": "重点：五大数据能力中心构成数据中台"}]}, {"t": "安全架构", "c": [{"t": "原则：管理技术并重·合规·体系化·跟趋势·借鉴同业"}, {"t": "现状：管理/技术/运营/监督四块短板，网络·数据·应用三领域缺口"}, {"t": "目标：治理-管理-技术-运营-监督五层总体架构"}, {"t": "重点：网络主动防御·数据全生命周期·应用全流程管控"}]}, {"t": "技术架构", "c": [{"t": "原则：业务导向·多栈兼容·成熟先进·安全·跟趋势"}, {"t": "现状：两地三中心骨架·三朵云·16套运维工具·微服务未治理"}, {"t": "目标：基础设施层→技术组件层→技术服务层→技术中台层＋DevOps＋标准规范"}, {"t": "重点：双活数据中心·混合多云·稳敏双态·DevOps·微服务治理·技术中台"}]}, {"t": "科技治理和管理", "c": [{"t": "现状：金融科技部下设八大中心"}, {"t": "改进：架构·项目·需求·外包·人事五领域；从管省联社到管全系统"}, {"t": "组织：向“业务伙伴型”演变；2026年末350人"}, {"t": "团队：行员管理·绩效·专业岗位·薪酬区间四化＋交流·知识库·考核"}, {"t": "项目/合规/外包/架构管理四项转型"}]}]}, {"t": "三、三大工程介绍", "c": [{"t": "三大工程", "c": [{"t": "坚城：修攻战之具，设守御之备——基础设施＋数据治理＋三专项"}, {"t": "群峰：青山削翠，攒列千峰——核心·信贷·客管·员工赋能"}, {"t": "连枝：稻麦连枝秀，铺渠到客户——超级掌银·开放银行·交易银行"}]}, {"t": "九大项目群", "c": [{"t": "1 基础设施｜2 数据治理"}, {"t": "3 核心｜4 信贷｜5 客管｜6 员工赋能"}, {"t": "7 超级掌银｜8 开放银行｜9 交易银行"}]}, {"t": "四大架构里程碑", "c": [{"t": "2024.6-12 全面启动：渠道整合·底座优化·安全基线·夯实基础"}, {"t": "2025.1-2026.6 重点建设：重建核心·架构升级·云化双活"}, {"t": "2026.7起 丰富场景：丰富产品·资产管控·安全运营"}]}, {"t": "实施路径总览", "c": [{"t": "2024启动建设·2025持续建设·2026优化与收口"}, {"t": "容器建设2026年启动"}]}]}, {"t": "四、坚城工程", "c": [{"t": "基础设施项目群", "c": [{"t": "现状：两地三中心·新生产中心34套SDN系统·电信机房106套·联通同城灾备18套"}, {"t": "目标：双态·云化·双活数据中心"}, {"t": "架构：双活数据中心·SDN三张网·混合多云·六类运维工具群·多重防护"}, {"t": "内容：双活三阶段·三朵云＋第二朵云·容器化·运行保障三阶段"}]}, {"t": "数据治理项目群", "c": [{"t": "体系：道（战略）·法（机制）·术（方法）·器（工具）"}, {"t": "落标：已落标/可落标/存疑/不建议四类结果；同步落标 vs 单一系统落标"}, {"t": "现状：9026项技术标准·数据类系统25套（占6%）"}, {"t": "目标：五中心数据中台＋DCMM稳健级"}, {"t": "内容：统一底座·基础平台·运营中心·开发中心·资产管控"}]}, {"t": "科技治理专项", "c": [{"t": "组织架构·团队建设·架构管理·项目管理·外包·合规六项"}]}, {"t": "风险防控专项", "c": [{"t": "全面风险：风险数据集市＋企业级风险管理平台"}, {"t": "反诈：平台＋模型＋数据＋运营四维"}, {"t": "反洗钱：自主监测系统"}]}, {"t": "安全管理专项", "c": [{"t": "安全运营·安全技术·安全管理三条主线"}]}]}, {"t": "五、群峰工程", "c": [{"t": "核心项目群", "c": [{"t": "现状：2006年投产·AS400集中式·客户号未统一·产品定价不灵活"}, {"t": "目标：七大业务能力＋“新快强稳”四大技术能力"}, {"t": "架构：微服务；七大能力中心＋核算引擎＋交易级总账＋统一技术平台"}, {"t": "内容：多法人·同城多活；周期16-30个月两阶段"}, {"t": "关键点：领导挂帅·9个专题·统一法人四步走·4新建62交易44数据11法人"}]}, {"t": "新信贷项目群", "c": [{"t": "现状：省联社4个信贷系统＋2个配套；行社自建多个"}, {"t": "目标：全流程·全功能·全渠道·数智化，信贷无处不在"}, {"t": "架构：“1＋2＋3＋12＋N”——1平台·2引擎·3前台·12能力中心"}, {"t": "内容：产品·客户·授信·风控·渠道·综合管理七项能力"}, {"t": "量化风控：建模十步（需求→数据→特征→开发→验证→调优→部署→应用→监测→退役）"}]}, {"t": "客管平台项目群", "c": [{"t": "现状：ECIF 2014年·CRM 2014年·积分2015年，架构老旧"}, {"t": "目标：客户全生命周期能力支撑"}, {"t": "架构：ECIF＋CRM＋权益中心＋营销中心四系统"}, {"t": "内容：客户号唯一·多级法人共享·积分统一·营销目录管理"}]}, {"t": "员工赋能项目群", "c": [{"t": "现状：人力系统2014年·11个模块·五类问题"}, {"t": "目标：合规管理平台＋人力资源系统"}, {"t": "架构：合规平台基于大数据平台与风控模型"}, {"t": "内容：员工行为事前引导·事中监测·事后处置；人力全模块重建"}]}]}, {"t": "六、连枝工程", "c": [{"t": "超级掌银项目群", "c": [{"t": "现状：6类电子渠道托管在农信银，专线调用行内接口"}, {"t": "目标：移动·敏捷·安全·千人千面"}, {"t": "五大定位：手机银行·网上银行·微信银行·渠道整合平台·业务中台"}, {"t": "架构：敏前台强中台；用户·认证·合约·支付·回单五域组件化"}, {"t": "回迁：分期·一刀切；关键点产品9项＋技术7项"}]}, {"t": "开放银行项目群", "c": [{"t": "现状：系统空白，不具备开放能力"}, {"t": "目标：创新转型·风险合规·互联互通·智能个性化"}, {"t": "架构：渠道层·服务支撑层·组合服务层·基础服务层"}, {"t": "内容：开放平台（API/SDK/H5）＋收单支付系统"}]}, {"t": "交易银行项目群", "c": [{"t": "现状：支付结算·贸易融资·现金管理三类服务，范围有限"}, {"t": "目标：供应链金融平台＋国际结算＋现金管理"}, {"t": "架构：模块化微服务；供应链门户＋产融协作＋金融服务"}, {"t": "内容：数字牛供应链——纵向贯通肉牛产业链"}, {"t": "路径：产品定制→业务服务→数据服务→生态建设"}]}]}]}}];
+const PALETTE = ["#1d4ed8","#0f766e","#b45309","#7e22ce","#b91c1c","#0369a1","#4d7c0f","#a16207"];
+const ROWGAP = 11, GAPX = 58;
+const DEPTH_W = [258, 222, 208, 250, 250];
+const DEPTH_FS = [19, 16, 14, 13.5, 13];
+const DEPTH_H = [42, 36, 32, 30, 30];
+
+let cur = 0, collapsed = new Set(), view = {k: 1, x: 24, y: 24};
+let nodes = [], links = [], totalW = 0, totalH = 0, svg, vg, stage;
+
+function initTabs(){
+  const box = document.getElementById('tabs');
+  MAPS.forEach((m,i)=>{
+    const b = document.createElement('div');
+    b.className = 'tab' + (i===0?' on':'');
+    b.textContent = m.title;
+    b.onclick = ()=>{ cur = i; collapsed.clear(); [...box.children].forEach((c,j)=>c.className='tab'+(j===i?' on':'')); build(); };
+    box.appendChild(b);
+  });
+}
+
+function charW(ch, fs){ return /[\u3000-\u9fff\uff01-\uffef]/.test(ch) ? fs : fs*0.56; }
+
+function wrap(text, w, fs){
+  const maxW = w - 18, lines = [];
+  let line = '', lw = 0;
+  for (const ch of text){
+    const cw = charW(ch, fs);
+    if (lw + cw > maxW && line){ lines.push(line); line=''; lw=0; }
+    line += ch; lw += cw;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function build(){
+  const root = JSON.parse(JSON.stringify(MAPS[cur].root));
+  let uid = 0;
+  nodes = []; links = [];
+
+  // 生成 id 与层级
+  (function tag(n, d, parent, top){
+    n.id = 'n' + (uid++); n.d = d; n.parent = parent; n.top = top;
+    nodes.push(n);
+    if (n.c){ n.c.forEach((c,i)=>tag(c, d+1, n, d===0 ? i : top)); }
+  })(root, 0, null, 0);
+
+  // x 坐标
+  const xOff = [0];
+  for (let d=1; d<6; d++) xOff[d] = xOff[d-1] + (DEPTH_W[d-1]||246) + GAPX;
+
+  // y 坐标
+  let cursor = 0;
+  nodes.forEach(n=> n.vis = false);
+  (function place(n){
+    const fs = DEPTH_FS[n.d], w = DEPTH_W[n.d]||246;
+    n.vis = true;
+    n.lines = wrap(n.t, w, fs);
+    const h = Math.max(DEPTH_H[n.d]||30, n.lines.length * (fs+5) + 12);
+    const kids = (n.c && n.c.length && !collapsed.has(n.id)) ? n.c : null;
+    n.w = w; n.h = h;
+    if (!kids){
+      n.y = cursor + h/2; cursor += h + ROWGAP; return n.y;
+    }
+    const ys = kids.map(place);
+    n.y = (ys[0] + ys[ys.length-1]) / 2;
+    return n.y;
+  })(root);
+
+  // assign x offsets
+  nodes.forEach(n=> n.off = xOff[n.d] || 0);
+
+  totalH = cursor;
+  totalW = xOff[[...nodes].reduce((m,n)=>Math.max(m,n.d),0)] + 260;
+
+  render();
+}
+
+function render(){
+  vg.innerHTML = '';
+  const q = document.getElementById('q').value.trim();
+
+  // 连线
+  nodes.forEach(n=>{
+    if (!n.vis) return;
+    if (!n.c || collapsed.has(n.id)) return;
+    n.c.forEach(c=>{
+      if (!c.vis) return;
+      const x1 = n.off + n.w, y1 = n.y, x2 = c.off, y2 = c.y;
+      const mid = (x1 + x2)/2;
+      const p = document.createElementNS('http://www.w3.org/2000/svg','path');
+      p.setAttribute('d', `M${x1} ${y1} C${mid} ${y1} ${mid} ${y2} ${x2} ${y2}`);
+      p.setAttribute('fill','none');
+      p.setAttribute('stroke', PALETTE[(n.d===0 ? (n.c.indexOf(c)) : n.top) % PALETTE.length]);
+      p.setAttribute('stroke-opacity', n.d===0 ? 0.55 : 0.32);
+      p.setAttribute('stroke-width', n.d===0 ? 2.2 : 1.3);
+      vg.appendChild(p);
+    });
+  });
+
+  // 节点
+  nodes.forEach(n=>{
+    if (!n.vis) return;
+    const color = PALETTE[(n.d===0 ? 0 : n.top) % PALETTE.length];
+    const g = document.createElementNS('http://www.w3.org/2000/svg','g');
+    g.setAttribute('class','nt');
+    g.setAttribute('transform', `translate(${n.off||0},${n.y - n.h/2})`);
+    const rect = document.createElementNS('http://www.w3.org/2000/svg','rect');
+    rect.setAttribute('width', n.w); rect.setAttribute('height', n.h);
+    rect.setAttribute('rx', n.d<=1 ? 9 : 7);
+    if (n.d === 0){ rect.setAttribute('fill', '#1f2d3d'); }
+    else if (n.d === 1){ rect.setAttribute('fill', color); rect.setAttribute('fill-opacity','0.92'); }
+    else if (n.d === 2){ rect.setAttribute('fill','#ffffff'); rect.setAttribute('stroke', color); rect.setAttribute('stroke-width','1.2'); }
+    else { rect.setAttribute('fill','#ffffff'); rect.setAttribute('stroke','#b9c4d4'); rect.setAttribute('stroke-width','1'); }
+    if (q && n.t.indexOf(q) >= 0){ rect.setAttribute('fill','#fff7cc'); rect.setAttribute('stroke','#f59e0b'); rect.setAttribute('stroke-width','2'); }
+    g.appendChild(rect);
+
+    const fs = DEPTH_FS[n.d];
+    const lh = fs + 5;
+    const startY = n.h/2 - (n.lines.length-1)*lh/2;
+    n.lines.forEach((ln,i)=>{
+      const t = document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x', n.d<=1 ? 12 : 9);
+      t.setAttribute('y', startY + i*lh);
+      t.setAttribute('font-size', fs);
+      t.setAttribute('fill', n.d===0 ? '#fff' : (n.d===1 ? '#fff' : '#1f2d3d'));
+      t.setAttribute('font-weight', n.d<=1 ? 700 : 400);
+      t.textContent = ln;
+      g.appendChild(t);
+    });
+
+    // 折叠标记
+    if (n.c && n.c.length){
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx', n.w - 11); dot.setAttribute('cy', n.h/2);
+      dot.setAttribute('r', collapsed.has(n.id) ? 4.5 : 3);
+      dot.setAttribute('fill', collapsed.has(n.id) ? '#f59e0b' : '#cbd5e1');
+      g.appendChild(dot);
+    }
+
+    g.onclick = (e)=>{ e.stopPropagation(); if (!n.c || !n.c.length) return;
+      collapsed.has(n.id) ? collapsed.delete(n.id) : collapsed.add(n.id); build(); };
+
+    vg.appendChild(g);
+  });
+
+  applyView();
+}
+
+function applyView(){
+  vg.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`);
+}
+
+function fit(){
+  const W = stage.clientWidth, H = stage.clientHeight;
+  let k = Math.min((W-40)/totalW, (H-40)/totalH);
+  k = Math.max(0.12, Math.min(k, 1.05));
+  if (k < 0.5) k = 0.6;
+  view = {k: k, x: 20, y: 20};
+  applyView();
+}
+
+function zoom(f){ view.k = Math.max(0.1, Math.min(2.6, view.k*f)); applyView(); }
+
+function expandAll(){
+  nodes.forEach(n=>{ if(n.c&&n.c.length) collapsed.delete(n.id); });
+  build();
+}
+function toLevel(d){
+  collapsed.clear();
+  nodes.forEach(n=>{ if (n.d>=d && n.c && n.c.length) collapsed.add(n.id); });
+  build(); fit();
+}
+
+function bindStage(){
+  let drag = null;
+  stage.addEventListener('mousedown', e=>{ drag = {x:e.clientX, y:e.clientY, vx:view.x, vy:view.y}; stage.classList.add('drag'); });
+  window.addEventListener('mousemove', e=>{ if(!drag) return; view.x = drag.vx + (e.clientX-drag.x); view.y = drag.vy + (e.clientY-drag.y); applyView(); });
+  window.addEventListener('mouseup', ()=>{ drag=null; stage.classList.remove('drag'); });
+  stage.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const f = e.deltaY < 0 ? 1.12 : 0.89;
+    const rect = stage.getBoundingClientRect();
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+    const nk = Math.max(0.1, Math.min(2.6, view.k*f));
+    view.x = mx - (mx - view.x) * (nk/view.k);
+    view.y = my - (my - view.y) * (nk/view.k);
+    view.k = nk; applyView();
+  }, {passive:false});
+
+  const q = document.getElementById('q');
+  q.addEventListener('input', ()=>{
+    const val = q.value.trim();
+    if (!val){ build(); return; }
+    // 展开所有祖先
+    collapsed.clear();
+    nodes.forEach(n=>{ if (n.d>=2 && n.c && n.c.length) collapsed.add(n.id); });
+    nodes.forEach(n=>{ if (n.t.indexOf(val) >= 0){
+      let p = n.parent; while(p){ collapsed.delete(p.id); p = p.parent; }
+      if (n.c) collapsed.delete(n.id);
+    }});
+    build();
+  });
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  svg = document.getElementById('svg');
+  vg = document.getElementById('view');
+  stage = document.getElementById('stage');
+  initTabs();
+  const hs = location.hash || '';
+  if (hs.indexOf('m2') >= 0){
+    cur = 1;
+    [...document.getElementById('tabs').children].forEach((c,j)=>c.className='tab'+(j===1?' on':''));
+  }
+  build();
+  if (hs.indexOf('all') >= 0){ expandAll(); view = {k: 0.75, x: 20, y: 20}; applyView(); }
+  else if (hs.indexOf('l3') >= 0){ toLevel(3); }
+  else { toLevel(2); }
+  if (hs.indexOf('z1') >= 0){ view = {k: 1, x: 20, y: 20}; applyView(); }
+  bindStage();
+});
+</script>
+</body>
+</html>

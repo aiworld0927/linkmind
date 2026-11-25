@@ -1,151 +1,34 @@
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Graph } from '@antv/x6';
 import { register } from '@antv/x6-react-shape';
-import { Modal, message, Button, Select } from 'antd';
+import { Button, Modal, Select, Tag, message } from 'antd';
+import {
+  AimOutlined,
+  AppstoreAddOutlined,
+  DeleteOutlined,
+  EditOutlined,
+} from '@ant-design/icons';
 import { useStore } from '@/store';
+import { APP_CONFIG, nodeColor } from '@/config/app';
+import { computeContentBounds, computeFitView, computeGridLayout, measureNodeHeight } from '@/utils/layout';
 import type { NodeItem } from '@/types';
-import { NodePopover } from './NodePopover';
-import { NoteList } from './NoteList';
+import { CanvasNode } from './CanvasNode';
 import { NodeModal } from './NodeModal';
+import { NodePopover } from './NodePopover';
 
-interface CustomNodeData {
+interface CanvasNodeData {
   node: NodeItem;
+  color: string;
+  highlighted: boolean;
   onEdit: (nodeId: string) => void;
   onDelete: (nodeId: string) => void;
-  onToggleExpand: (nodeId: string) => void;
-  onAddListItem: (parentId: string, item: any) => void;
-  onUpdateListItem: (parentId: string, itemId: string, patch: any) => void;
-  onDeleteListItem: (parentId: string, itemIds: string[]) => void;
+  onCardClick: (nodeId: string) => void;
+  onCardDoubleClick: (nodeId: string) => void;
 }
 
 interface GraphCanvasProps {
   onEditNode?: (node: NodeItem) => void;
 }
-
-const TOOLBAR_HEIGHT = 64;
-const BREADCRUMB_HEIGHT = 40;
-
-const ReactNodeComponent = ({ node }: { node: any }) => {
-  const data = node.getData() as CustomNodeData;
-  if (!data) return null;
-  
-  const { node: nodeData, onEdit, onDelete, onAddListItem, onUpdateListItem, onDeleteListItem } = data;
-  const isSearchMatch = false;
-
-  const handleEdit = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.nativeEvent.stopPropagation();
-    setTimeout(() => {
-      onEdit(nodeData.id);
-    }, 50);
-  };
-
-  const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.nativeEvent.stopPropagation();
-    setTimeout(() => {
-      onDelete(nodeData.id);
-    }, 50);
-  };
-
-  return (
-    <div
-      style={{
-        width: '240px',
-        backgroundColor: '#ffffff',
-        border: isSearchMatch
-          ? '2px solid #1890ff'
-          : nodeData.isExpanded
-          ? '2px solid #10b981'
-          : '1px solid #333333',
-        borderRadius: '8px',
-        overflow: 'hidden',
-        boxShadow: isSearchMatch
-          ? '0 0 0 2px rgba(24, 144, 255, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15)'
-          : '0 2px 8px rgba(0, 0, 0, 0.15)',
-        cursor: 'pointer',
-      }}
-    >
-      <div
-        style={{
-          padding: '12px 16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          backgroundColor: '#fafafa',
-        }}
-      >
-        <span
-          style={{
-            fontSize: '14px',
-            fontWeight: '500',
-            color: '#1f1f1f',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            flex: '1',
-            marginRight: '8px',
-          }}
-          title={nodeData.name}
-        >
-          {nodeData.name}
-        </span>
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button
-            style={{
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#666666',
-            }}
-            onClick={handleEdit}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M11.95 2C6.47 2 2 6.48 2 12s4.47 10 9.95 10C17.53 22 22 17.52 22 12S17.53 2 11.95 2zm3.7 15.38c-.2 0-.39-.1-.54-.25l-2.5-2.5c-.14-.14-.25-.34-.25-.54 0-.2.1-.39.25-.54l2.5-2.5c.14-.14.34-.25.54-.25.2 0 .39.1.54.25l2.5 2.5c.14.14.25.34.25.54 0 .2-.1.39-.25.54l-2.5 2.5c-.15.15-.34.25-.54.25zM12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"/>
-            </svg>
-          </button>
-          <button
-            style={{
-              border: 'none',
-              background: 'none',
-              cursor: 'pointer',
-              padding: '4px',
-              color: '#666666',
-            }}
-            onClick={handleDelete}
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div style={{ height: '1px', backgroundColor: '#e8e8e8' }} />
-
-      {nodeData.isExpanded && (
-        <div style={{ padding: '12px' }}>
-          <NoteList
-            items={nodeData.children}
-            parentNodeId={nodeData.id}
-            onAdd={onAddListItem}
-            onEdit={onUpdateListItem}
-            onDelete={onDeleteListItem}
-          />
-        </div>
-      )}
-    </div>
-  );
-};
-
-register({
-  shape: 'react-node',
-  width: 240,
-  height: 60,
-  effect: ['data'],
-  component: ReactNodeComponent,
-});
 
 interface ContextMenuState {
   visible: boolean;
@@ -156,664 +39,422 @@ interface ContextMenuState {
   edgeId?: string;
 }
 
+const ReactNodeComponent = ({ node }: { node: { getData: () => CanvasNodeData } }) => {
+  const data = node.getData();
+  if (!data?.node) return null;
 
+  const toggleNodeExpand = useStore((state) => state.toggleNodeExpand);
+  const addListItem = useStore((state) => state.addListItem);
+  const updateListItem = useStore((state) => state.updateListItem);
+  const deleteListItem = useStore((state) => state.deleteListItem);
+
+  return (
+    <CanvasNode
+      node={data.node}
+      color={data.color}
+      highlighted={data.highlighted}
+      onEdit={data.onEdit}
+      onDelete={data.onDelete}
+      onCardClick={data.onCardClick}
+      onCardDoubleClick={data.onCardDoubleClick}
+      onToggleExpand={toggleNodeExpand}
+      onAddNote={addListItem}
+      onUpdateNote={updateListItem}
+      onDeleteNotes={deleteListItem}
+    />
+  );
+};
+
+register({
+  shape: 'linkmind-node',
+  width: APP_CONFIG.node.width,
+  height: APP_CONFIG.node.minHeight,
+  effect: ['data'],
+  component: ReactNodeComponent,
+});
 
 export function GraphCanvas({ onEditNode }: GraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<Graph | null>(null);
+  const sizeRef = useRef({ width: 1024, height: 720 });
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const manualPositionRef = useRef(false);
   const [isReady, setIsReady] = useState(false);
-  const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null);
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
-    visible: false,
-    x: 0,
-    y: 0,
-    type: 'blank',
-  });
+  const [graphError, setGraphError] = useState<string | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, type: 'blank' });
   const [showAddNodeModal, setShowAddNodeModal] = useState(false);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [showEdgeEditModal, setShowEdgeEditModal] = useState(false);
-  const [editingEdge, setEditingEdge] = useState<{ id: string; sourceId: string; targetId: string } | null>(null);
+  const [editingEdge, setEditingEdge] = useState<{
+    id: string;
+    oldSourceId: string;
+    oldTargetId: string;
+    sourceId: string;
+    targetId: string;
+  } | null>(null);
 
   const {
     currentNodes,
     currentLevelId,
+    activeDatasetId,
     searchKeyword,
     globalDisplayMode,
-    canvasView,
-    setCanvasView,
-    updateNode,
-    deleteNode,
-    toggleNodeExpand,
-    openPopover,
-    closePopover,
-    openDrawer,
-    closeDrawer,
     popoverVisibleNodeId,
-    drillDown,
     nodePositions,
+    setCanvasView,
+    deleteNode,
+    closePopover,
+    closeDrawer,
+    openPopover,
+    openDrawer,
     updateNodePosition,
     resetNodePositions,
-    addListItem,
-    updateListItem,
-    deleteListItem,
+    registerCanvasController,
+    addDependency,
+    removeDependency,
+    updateDependency,
+    resetToRoot,
   } = useStore();
 
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchHits = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase();
+    if (!keyword) return new Set<string>();
+    return new Set(
+      currentNodes.filter((node) => node.name.toLowerCase().includes(keyword)).map((node) => node.id),
+    );
+  }, [currentNodes, searchKeyword]);
 
-  const handleEditNode = useCallback((nodeId: string) => {
-    const node = currentNodes.find((n) => n.id === nodeId);
-    if (node && onEditNode) {
-      onEditNode(node);
-    } else {
-      updateNode(nodeId, { displayMode: 'drawer' });
+  /** 节点卡片右下角在画布坐标系中的屏幕位置（用于悬浮卡片定位） */
+  const screenPoint = useCallback((nodeId: string): { x: number; y: number } | null => {
+    const graph = graphRef.current;
+    if (!graph) return null;
+    const cell = graph.getCellById(nodeId);
+    if (!cell || !cell.isNode()) return null;
+    const bbox = cell.getBBox();
+    const zoom = graph.zoom();
+    const { tx, ty } = graph.translate();
+    return { x: (bbox.x + bbox.width) * zoom + tx, y: (bbox.y + bbox.height / 2) * zoom + ty };
+  }, []);
+
+  /** 单击：延时 240ms 区分双击，按节点展示模式执行展开 / 悬浮 / 抽屉 */
+  const handleCardClick = useCallback(
+    (nodeId: string) => {
+      if (clickTimerRef.current) {
+        clearTimeout(clickTimerRef.current);
+        clickTimerRef.current = null;
+        return;
+      }
+      clickTimerRef.current = setTimeout(() => {
+        clickTimerRef.current = null;
+        const state = useStore.getState();
+        const node = state.currentNodes.find((item) => item.id === nodeId);
+        if (!node) return;
+        const targetMode = node.displayMode || state.globalDisplayMode;
+
+        if (targetMode === 'inner') {
+          state.toggleNodeExpand(nodeId);
+          return;
+        }
+        if (targetMode === 'popover') {
+          if (state.popoverVisibleNodeId === nodeId) {
+            state.closePopover();
+            return;
+          }
+          state.closePopover();
+          state.closeDrawer();
+          setPopoverAnchor(screenPoint(nodeId));
+          setTimeout(() => openPopover(nodeId), 20);
+          return;
+        }
+        state.closePopover();
+        state.openDrawer(nodeId);
+      }, 240);
+    },
+    [openPopover, screenPoint],
+  );
+
+  /** 双击：下钻到该节点的子层级 */
+  const handleCardDoubleClick = useCallback((nodeId: string) => {
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
     }
-  }, [currentNodes, onEditNode, updateNode]);
+    const state = useStore.getState();
+    const node = state.currentNodes.find((item) => item.id === nodeId);
+    if (!node) return;
+    if (node.children.length === 0) {
+      message.info('该节点没有子节点');
+      return;
+    }
+    state.drillDown(node.id);
+  }, []);
+
+  const handleEditNode = useCallback(
+    (nodeId: string) => {
+      const node = useStore.getState().currentNodes.find((item) => item.id === nodeId);
+      if (!node) {
+        message.error('节点不存在或已被删除');
+        return;
+      }
+      if (onEditNode) onEditNode(node);
+      else openDrawer(nodeId);
+    },
+    [onEditNode, openDrawer],
+  );
 
   const handleDeleteNode = useCallback((nodeId: string) => {
-    const node = currentNodes.find((n) => n.id === nodeId);
-    if (!node) return;
-
-    const dependentNodes = currentNodes.filter((n) => n.dependencies.includes(nodeId));
-    const hasDependents = dependentNodes.length > 0;
+    const state = useStore.getState();
+    const node = state.currentNodes.find((item) => item.id === nodeId);
+    if (!node) {
+      message.error('节点不存在或已被删除');
+      return;
+    }
+    const dependentCount = state.currentNodes.filter((item) => item.dependencies.includes(nodeId)).length;
 
     Modal.confirm({
-      title: '确认删除',
+      title: `删除节点「${node.name}」`,
+      width: 480,
       content: (
-        <div>
-          <p>确定要删除节点「{node.name}」吗？</p>
-          {hasDependents && (
-            <p style={{ color: '#ef4444', marginTop: '8px' }}>
-              ⚠️ 警告：有 {dependentNodes.length} 个节点依赖此节点，删除后将断裂依赖连线
-            </p>
+        <div style={{ fontSize: 13, lineHeight: 1.8 }}>
+          <p>删除后节点及其附属笔记将从当前画布移除，可通过「操作记录」撤销。</p>
+          {dependentCount > 0 && (
+            <p style={{ color: '#b91c1c' }}>有无 {dependentCount} 个节点依赖此节点，仅删除节点时会自动清理这些依赖。</p>
           )}
           {node.children.length > 0 && (
-            <p style={{ color: '#faad14', marginTop: '8px' }}>
-              ℹ️ 提示：该节点包含 {node.children.length} 条附属笔记，删除后笔记将一并移除
-            </p>
+            <p style={{ color: '#b45309' }}>该节点包含 {node.children.length} 条附属笔记，将一并移除。</p>
           )}
-          <div style={{ marginTop: '16px', display: 'flex', gap: '12px' }}>
-            <Button
-              danger
-              onClick={() => {
-                Modal.confirm({
-                  title: '级联删除确认',
-                  content: (
-                    <div>
-                      <p>确定要级联删除节点「{node.name}」及其所有关联数据吗？</p>
-                      <p style={{ color: '#ef4444', marginTop: '8px' }}>
-                        ⚠️ 此操作不可恢复，将删除该节点、所有依赖它的节点及附属笔记
-                      </p>
-                    </div>
-                  ),
-                  okText: '确认级联删除',
-                  okType: 'danger',
-                  cancelText: '取消',
-                  onOk: () => {
-                    deleteNode(nodeId, true);
-                    message.success('✅ 节点已级联删除');
-                  },
-                });
-              }}
-            >
-              级联删除
-            </Button>
-          </div>
         </div>
       ),
       okText: '仅删除当前节点',
       okType: 'danger',
       cancelText: '取消',
       onOk: () => {
-        deleteNode(nodeId, false);
-        message.success('✅ 节点已删除');
+        const result = deleteNode(nodeId, false);
+        if (result.ok) message.success(result.message);
+        else message.error(result.message);
       },
     });
-  }, [currentNodes, deleteNode]);
+  }, [deleteNode]);
 
-  const calculateNodePositions = useCallback((nodes: NodeItem[]) => {
-    const nodeWidth = 240;
-    const nodeGapX = 60;
-    const nodeGapY = 40;
-    const cols = 3;
-
-    let currentRow = 0;
-    let currentCol = 0;
-    let rowHeights: number[] = [0];
-    const positions: Record<string, { x: number; y: number }> = {};
-
-    nodes.forEach((node) => {
-      const childrenHeight = node.isExpanded
-        ? Math.max(60, node.children.length * 60 + 80)
-        : 0;
-      const height = Math.max(60, 60 + (node.isExpanded ? childrenHeight : 0));
-
-      rowHeights[currentRow] = Math.max(rowHeights[currentRow], height);
-
-      currentCol++;
-      if (currentCol >= cols) {
-        currentCol = 0;
-        currentRow++;
-        rowHeights[currentRow] = 0;
-      }
-    });
-
-    const totalWidth = cols * nodeWidth + (cols - 1) * nodeGapX;
-    const totalHeight = rowHeights.reduce((sum, h) => sum + h, 0) + (rowHeights.length - 1) * nodeGapY;
-    const startX = Math.max(50, (800 - totalWidth) / 2);
-    const startY = Math.max(50, (600 - totalHeight) / 2);
-
-    currentRow = 0;
-    currentCol = 0;
-
-    nodes.forEach((node) => {
-      const x = startX + currentCol * (nodeWidth + nodeGapX);
-      const y = startY + rowHeights.slice(0, currentRow).reduce((sum, h) => sum + h + nodeGapY, 0);
-
-      positions[node.id] = { x, y };
-
-      currentCol++;
-      if (currentCol >= cols) {
-        currentCol = 0;
-        currentRow++;
-      }
-    });
-
-    return positions;
-  }, []);
-
-  const renderAllGraph = useCallback(() => {
-    if (!graphRef.current) return;
-
+  const renderGraph = useCallback(() => {
     const graph = graphRef.current;
+    if (!graph) return;
+    const state = useStore.getState();
+    const layout = computeGridLayout(state.currentNodes, sizeRef.current);
+    const keyword = state.searchKeyword.trim().toLowerCase();
 
-    graph.batchUpdate(() => {
-      graph.clearCells();
+    try {
+      graph.batchUpdate(() => {
+        graph.clearCells();
 
-      const filteredNodes = currentNodes.filter((node) => {
-        if (!searchKeyword) return true;
-        return node.name.toLowerCase().includes(searchKeyword.toLowerCase());
-      });
-
-      if (filteredNodes.length === 0) {
-        return;
-      }
-
-      const nodeIdSet = new Set(filteredNodes.map((n) => n.id));
-      const positions = calculateNodePositions(filteredNodes);
-
-      filteredNodes.forEach((node) => {
-        const childrenHeight = node.isExpanded
-          ? Math.max(60, node.children.length * 60 + 80)
-          : 0;
-        const height = Math.max(60, 60 + (node.isExpanded ? childrenHeight : 0));
-
-        const savedPos = nodePositions[node.id];
-        const pos = savedPos || positions[node.id];
-
-        const data: CustomNodeData = {
-          node,
-          onEdit: handleEditNode,
-          onDelete: handleDeleteNode,
-          onToggleExpand: toggleNodeExpand,
-          onAddListItem: addListItem,
-          onUpdateListItem: updateListItem,
-          onDeleteListItem: deleteListItem,
-        };
-
-        graph.addNode({
-          id: node.id,
-          shape: 'react-node',
-          x: pos.x,
-          y: pos.y,
-          width: 240,
-          height,
-          data,
-          zIndex: 1,
-        });
-      });
-
-      filteredNodes.forEach((node) => {
-        node.dependencies.forEach((depId) => {
-          if (nodeIdSet.has(depId)) {
-            graph.addEdge({
-              id: `edge-${depId}-${node.id}`,
-              source: depId,
-              target: node.id,
-              attrs: {
-                line: {
-                  stroke: '#999999',
-                  strokeWidth: 1.5,
-                  targetMarker: {
-                    name: 'classic',
-                    size: 8,
-                  },
-                },
-              },
-              zIndex: 0,
-              data: {
-                sourceId: depId,
-                targetId: node.id,
-              },
-            });
-          }
-        });
-      });
-    });
-  }, [currentNodes, searchKeyword, handleEditNode, handleDeleteNode, toggleNodeExpand, calculateNodePositions, nodePositions, addListItem, updateListItem, deleteListItem]);
-
-  const updateGraphIncrementally = useCallback(() => {
-    if (!graphRef.current) return;
-
-    const graph = graphRef.current;
-
-    const currentGraphNodeIds = new Set(graph.getNodes().map((n) => n.id));
-
-    const filteredNodes = currentNodes.filter((node) => {
-      if (!searchKeyword) return true;
-      return node.name.toLowerCase().includes(searchKeyword.toLowerCase());
-    });
-    const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-
-    const positions = calculateNodePositions(filteredNodes);
-
-    graph.batchUpdate(() => {
-      currentGraphNodeIds.forEach((nodeId) => {
-        if (!filteredNodeIds.has(nodeId)) {
-          graph.removeNode(nodeId);
-        }
-      });
-
-      const nodeWidth = 240;
-
-      filteredNodes.forEach((node) => {
-        const existingCell = graph.getCellById(node.id);
-        const existingNode = existingCell?.isNode() ? (existingCell as any) : null;
-        const childrenHeight = node.isExpanded
-          ? Math.max(60, node.children.length * 60 + 80)
-          : 0;
-        const height = Math.max(60, 60 + (node.isExpanded ? childrenHeight : 0));
-
-        const data: CustomNodeData = {
-          node,
-          onEdit: handleEditNode,
-          onDelete: handleDeleteNode,
-          onToggleExpand: toggleNodeExpand,
-          onAddListItem: addListItem,
-          onUpdateListItem: updateListItem,
-          onDeleteListItem: deleteListItem,
-        };
-
-        const savedPos = nodePositions[node.id];
-        const pos = savedPos || positions[node.id];
-
-        if (existingNode) {
-          const currentData = existingNode.getData() as CustomNodeData;
-          if (currentData?.node !== node) {
-            existingNode.setData(data);
-          }
-          existingNode.setSize(nodeWidth, height);
-          existingNode.setPosition(pos.x, pos.y);
-        } else {
+        state.currentNodes.forEach((node, index) => {
+          const position = state.nodePositions[node.id] ?? layout.positions[node.id];
+          if (!position) return;
+          const data: CanvasNodeData = {
+            node,
+            color: nodeColor(index),
+            highlighted: Boolean(keyword) && node.name.toLowerCase().includes(keyword),
+            onEdit: handleEditNode,
+            onDelete: handleDeleteNode,
+            onCardClick: handleCardClick,
+            onCardDoubleClick: handleCardDoubleClick,
+          };
           graph.addNode({
             id: node.id,
-            shape: 'react-node',
-            x: pos.x,
-            y: pos.y,
-            width: nodeWidth,
-            height,
+            shape: 'linkmind-node',
+            x: position.x,
+            y: position.y,
+            width: APP_CONFIG.node.width,
+            height: measureNodeHeight(node),
             data,
             zIndex: 1,
           });
-        }
-      });
+        });
 
-      graph.getEdges().forEach((edge) => {
-        graph.removeEdge(edge);
-      });
-
-      filteredNodes.forEach((node) => {
-        node.dependencies.forEach((depId) => {
-          if (filteredNodeIds.has(depId)) {
+        const nodeIds = new Set(state.currentNodes.map((node) => node.id));
+        state.currentNodes.forEach((node, index) => {
+          node.dependencies.forEach((sourceId) => {
+            if (!nodeIds.has(sourceId)) return;
             graph.addEdge({
-              id: `edge-${depId}-${node.id}`,
-              source: depId,
+              id: `edge-${sourceId}-${node.id}`,
+              source: sourceId,
               target: node.id,
               attrs: {
                 line: {
-                  stroke: '#999999',
-                  strokeWidth: 1.5,
-                  targetMarker: {
-                    name: 'classic',
-                    size: 8,
-                  },
+                  stroke: '#b9c4d4',
+                  strokeWidth: 1.4,
+                  targetMarker: { name: 'classic', size: 7 },
                 },
               },
               zIndex: 0,
-              data: {
-                sourceId: depId,
-                targetId: node.id,
-              },
+              data: { sourceId, targetId: node.id, color: nodeColor(index) },
             });
-          }
+          });
         });
       });
-    });
-  }, [currentNodes, searchKeyword, handleEditNode, handleDeleteNode, toggleNodeExpand, nodePositions, calculateNodePositions, addListItem, updateListItem, deleteListItem]);
-
-  const handleNodeClick = useCallback((e: any) => {
-    const node = e.node;
-    const nodeData = node.getData() as CustomNodeData;
-    if (!nodeData?.node) return;
-
-    const nodeId = nodeData.node.id;
-
-    if (clickTimerRef.current) {
-      clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-      return;
+    } catch (error) {
+      console.error('[linkmind] 渲染画布失败:', error);
+      setGraphError('画布渲染失败，请刷新页面重试');
     }
+  }, [handleCardClick, handleCardDoubleClick, handleDeleteNode, handleEditNode]);
 
-    const nodeDisplayMode = nodeData.node.displayMode;
-    const targetMode = nodeDisplayMode || globalDisplayMode;
-
-    clickTimerRef.current = setTimeout(() => {
-      clickTimerRef.current = null;
-
-      if (targetMode === 'inner') {
-        toggleNodeExpand(nodeId);
-        return;
-      }
-
-      switch (targetMode) {
-        case 'popover':
-          if (popoverVisibleNodeId === nodeId) {
-            closePopover();
-          } else {
-            closePopover();
-            closeDrawer();
-
-            const bbox = node.getBBox();
-            setPopoverPosition({ x: bbox.x + bbox.width, y: bbox.y });
-
-            setTimeout(() => {
-              openPopover(nodeId);
-            }, 50);
-          }
-          break;
-
-        case 'drawer':
-          closePopover();
-          openDrawer(nodeId);
-          break;
-      }
-    }, 300);
-  }, [globalDisplayMode, closePopover, closeDrawer, openPopover, openDrawer, popoverVisibleNodeId, toggleNodeExpand]);
-
-  const handleNodeDoubleClick = useCallback((e: any) => {
-    if (clickTimerRef.current) {
-      clearTimeout(clickTimerRef.current);
-      clickTimerRef.current = null;
-    }
-
-    const node = e.node;
-    const nodeData = node.getData() as CustomNodeData;
-    if (!nodeData?.node) return;
-
-    const targetChildren = nodeData.node.children;
-    if (targetChildren.length === 0) {
-      message.info('该节点没有子节点');
-      return;
-    }
-
-    setTimeout(() => {
-      drillDown(nodeData.node.id);
-    }, 10);
-  }, [drillDown]);
-
-  const handleAddNodeFromMenu = useCallback(() => {
-    setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' });
-    setShowAddNodeModal(true);
-  }, []);
-
-  const handleDeleteNodeFromMenu = useCallback((nodeId: string) => {
-    const node = currentNodes.find((n) => n.id === nodeId);
-    if (!node) return;
-
-    Modal.confirm({
-      title: '确认删除',
-      content: (
-        <div>
-          <p>确定要删除节点「{node.name}」吗？</p>
-          {node.children.length > 0 && (
-            <p style={{ color: '#faad14', marginTop: '8px' }}>
-              ℹ️ 提示：该节点包含 {node.children.length} 条附属笔记，删除后笔记将一并移除
-            </p>
-          )}
-        </div>
-      ),
-      okText: '确认删除',
-      okType: 'danger',
-      cancelText: '取消',
-      onOk: () => {
-        deleteNode(nodeId, false);
-        message.success('✅ 节点已删除');
-      },
-    });
-
-    setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' });
-  }, [currentNodes, deleteNode]);
-
-  const handleDeleteEdge = useCallback((edgeId: string) => {
+  const centerContent = useCallback((maxZoom = 1.1) => {
     const graph = graphRef.current;
     if (!graph) return;
+    const state = useStore.getState();
+    if (state.currentNodes.length === 0) return;
 
+    const positions: Record<string, { x: number; y: number }> = {};
+    graph.getNodes().forEach((cell) => {
+      const position = cell.position();
+      positions[cell.id] = { x: position.x, y: position.y };
+    });
+    const bounds = computeContentBounds(state.currentNodes, positions);
+    const view = computeFitView(bounds, sizeRef.current, { maxZoom });
+    graph.zoomTo(view.zoom);
+    graph.translate(view.x, view.y);
+    setCanvasView({ zoom: view.zoom, x: view.x, y: view.y });
+  }, [setCanvasView]);
+
+  const relayout = useCallback(() => {
+    manualPositionRef.current = false;
+    resetNodePositions();
+    requestAnimationFrame(() => {
+      renderGraph();
+      centerContent(1.1);
+    });
+  }, [centerContent, renderGraph, resetNodePositions]);
+
+  const handleEdgeDelete = useCallback((edgeId: string) => {
+    const graph = graphRef.current;
+    if (!graph) return;
     const edge = graph.getCellById(edgeId);
-    if (!edge || !edge.isEdge()) return;
-
+    if (!edge || !edge.isEdge()) {
+      message.error('依赖关系不存在');
+      return;
+    }
     const sourceId = edge.getSourceCellId();
     const targetId = edge.getTargetCellId();
-
     if (!sourceId || !targetId) {
-      graph.removeEdge(edge);
+      setSelectedEdgeId(null);
       return;
     }
-
-    const targetNode = currentNodes.find((n) => n.id === targetId);
-    if (!targetNode) {
-      graph.removeEdge(edge);
-      return;
+    const result = removeDependency(sourceId, targetId);
+    if (result.ok) {
+      message.success(result.message);
+      setSelectedEdgeId(null);
+    } else {
+      message.error(result.message);
     }
+  }, [removeDependency]);
 
-    updateNode(targetId, {
-      dependencies: targetNode.dependencies.filter((id) => id !== sourceId),
-    });
-
-    message.success('✅ 依赖关系已删除');
-    setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' });
-    setSelectedEdgeId(null);
-  }, [currentNodes, updateNode]);
-
-  const handleEditEdge = useCallback((edgeId: string) => {
+  const handleEdgeEdit = useCallback((edgeId: string) => {
     const graph = graphRef.current;
     if (!graph) return;
-
     const edge = graph.getCellById(edgeId);
     if (!edge || !edge.isEdge()) return;
-
     const sourceId = edge.getSourceCellId();
     const targetId = edge.getTargetCellId();
-
     if (!sourceId || !targetId) return;
-
-    setEditingEdge({ id: edgeId, sourceId, targetId });
-    setShowEdgeEditModal(true);
+    setEditingEdge({ id: edgeId, oldSourceId: sourceId, oldTargetId: targetId, sourceId, targetId });
     setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' });
   }, []);
 
-  const handleUpdateEdge = useCallback((newSourceId: string, newTargetId: string) => {
+  const handleEdgeUpdate = useCallback(() => {
     if (!editingEdge) return;
-
-    const graph = graphRef.current;
-    if (!graph) return;
-
-    if (newSourceId === newTargetId) {
-      message.error('⚠️ 不能创建自依赖');
-      return;
+    const result = updateDependency(
+      editingEdge.oldSourceId,
+      editingEdge.oldTargetId,
+      editingEdge.sourceId,
+      editingEdge.targetId,
+    );
+    if (result.ok) {
+      message.success(result.message);
+      setEditingEdge(null);
+      setSelectedEdgeId(null);
+    } else {
+      message.error(result.message);
     }
+  }, [editingEdge, updateDependency]);
 
-    const hasExistingEdge = graph.getEdges().some((e: any) => {
-      const s = e.getSourceCellId();
-      const t = e.getTargetCellId();
-      return s === newSourceId && t === newTargetId && e.id !== editingEdge.id;
-    });
-
-    if (hasExistingEdge) {
-      message.error('⚠️ 依赖关系已存在');
-      return;
-    }
-
-    const oldSourceId = editingEdge.sourceId;
-    const oldTargetId = editingEdge.targetId;
-
-    if (oldTargetId !== newTargetId) {
-      const oldTargetNode = currentNodes.find((n) => n.id === oldTargetId);
-      if (oldTargetNode) {
-        updateNode(oldTargetId, {
-          dependencies: oldTargetNode.dependencies.filter((id) => id !== oldSourceId),
-        });
-      }
-    }
-
-    if (oldSourceId !== newSourceId || oldTargetId !== newTargetId) {
-      const newTargetNode = currentNodes.find((n) => n.id === newTargetId);
-      if (newTargetNode) {
-        const newDependencies = [...newTargetNode.dependencies];
-        if (!newDependencies.includes(newSourceId)) {
-          newDependencies.push(newSourceId);
-        }
-        updateNode(newTargetId, { dependencies: newDependencies });
-      }
-    }
-
-    message.success('✅ 依赖关系已更新');
-    setShowEdgeEditModal(false);
-    setEditingEdge(null);
-    setSelectedEdgeId(null);
-  }, [editingEdge, currentNodes, updateNode]);
-
-  const handleEdgeClick = useCallback((e: any) => {
-    const edge = e.edge;
-    setSelectedEdgeId(edge.id);
-
-    const edges = graphRef.current?.getEdges();
-    edges?.forEach((ed: any) => {
-      ed.setAttrs({
-        line: {
-          stroke: ed.id === edge.id ? '#1890ff' : '#999999',
-          strokeWidth: ed.id === edge.id ? 3 : 1.5,
-        },
-      });
-    });
-  }, []);
-
+  // 画布初始化：仅执行一次，事件回调内部始终读取最新 store 状态
   useEffect(() => {
-    if (!containerRef.current) return;
-
     const container = containerRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight;
+    if (!container) return;
 
-    let graph: Graph | null = null;
-    graph = new Graph({
-      container,
-      width,
-      height,
-      grid: {
-        size: 10,
-        visible: true,
-      },
-      panning: {
-        enabled: true,
-        eventTypes: ['leftMouseDown'],
-      },
-      mousewheel: {
-        enabled: true,
-        factor: 1.1,
-      },
-      connecting: {
-        router: 'manhattan',
-        connector: {
-          name: 'rounded',
-          args: {
-            radius: 8,
-          },
+    const width = container.clientWidth || 1024;
+    const height = container.clientHeight || 720;
+    sizeRef.current = { width, height };
+
+    let graph: Graph;
+    try {
+      graph = new Graph({
+        container,
+        width,
+        height,
+        background: { color: '#f5f7fa' },
+        grid: { size: 10, visible: true, type: 'dot', args: { color: '#dfe5ee' } },
+        panning: { enabled: true, eventTypes: ['leftMouseDown'] },
+        mousewheel: {
+          enabled: true,
+          factor: 1.08,
+          minScale: APP_CONFIG.layout.minZoom,
+          maxScale: APP_CONFIG.layout.maxZoom,
+          zoomAtMousePosition: true,
         },
-        anchor: 'center',
-        connectionPoint: 'anchor',
-        allowBlank: false,
-        snap: {
-          radius: 20,
-        },
-        createEdge() {
-          if (!graph) return null;
-          return graph.createEdge({
-            attrs: {
-              line: {
-                stroke: '#1890ff',
-                strokeWidth: 2,
-                targetMarker: {
-                  name: 'classic',
-                  size: 8,
+        connecting: {
+          router: 'manhattan',
+          connector: { name: 'rounded', args: { radius: 8 } },
+          anchor: 'center',
+          connectionPoint: 'anchor',
+          allowBlank: false,
+          snap: { radius: 20 },
+          createEdge() {
+            return graph.createEdge({
+              attrs: {
+                line: {
+                  stroke: '#1d4ed8',
+                  strokeWidth: 2,
+                  targetMarker: { name: 'classic', size: 7 },
                 },
               },
-            },
-            zIndex: 0,
-          });
+              zIndex: 0,
+            });
+          },
+          validateConnection({ sourceCell, targetCell }) {
+            if (!sourceCell || !targetCell) return false;
+            return sourceCell.id !== targetCell.id;
+          },
         },
-        validateConnection({ sourceCell, targetCell }) {
-          if (!sourceCell || !targetCell) return false;
-          if (sourceCell.id === targetCell.id) return false;
-          return true;
-        },
-      },
-      autoResize: true,
-    });
+        autoResize: false,
+      });
+    } catch (error) {
+      console.error('[linkmind] 初始化画布失败:', error);
+      setGraphError('画布初始化失败，请刷新页面重试');
+      return;
+    }
 
     graphRef.current = graph;
     setIsReady(true);
 
-    if (canvasView) {
-      graph.scale(canvasView.zoom);
-      graph.translate(canvasView.x, canvasView.y);
-    }
+    const initialView = useStore.getState().canvasView;
+    graph.zoomTo(initialView.zoom);
+    graph.translate(initialView.x, initialView.y);
 
-    let currentZoom = canvasView?.zoom ?? 1;
-    let currentTx = canvasView?.x ?? 0;
-    let currentTy = canvasView?.y ?? 0;
+    const handleEdgeClick = ({ edge }: { edge: any }) => {
+      setSelectedEdgeId(edge.id);
+      graph.getEdges().forEach((item) => {
+        const active = item.id === edge.id;
+        item.setAttrs({
+          line: { stroke: active ? '#1d4ed8' : '#b9c4d4', strokeWidth: active ? 2.6 : 1.4 },
+        });
+      });
+    };
 
-    graph.on('zoom', () => {
-      currentZoom = graph.zoom();
-      const { tx, ty } = graph.translate();
-      currentTx = tx;
-      currentTy = ty;
-      setCanvasView({ zoom: currentZoom, x: currentTx, y: currentTy });
-      closePopover();
-    });
-
-    graph.on('translate', () => {
-      currentZoom = graph.zoom();
-      const { tx, ty } = graph.translate();
-      currentTx = tx;
-      currentTy = ty;
-      setCanvasView({ zoom: currentZoom, x: currentTx, y: currentTy });
-      closePopover();
-    });
-
-    graph.on('node:click', handleNodeClick);
-    graph.on('node:dblclick', handleNodeDoubleClick);
     graph.on('edge:click', handleEdgeClick);
 
     graph.on('node:moved', ({ node }: { node: any }) => {
+      manualPositionRef.current = true;
       const { x, y } = node.position();
       updateNodePosition(node.id, { x, y });
     });
@@ -821,56 +462,31 @@ export function GraphCanvas({ onEditNode }: GraphCanvasProps) {
     graph.on('edge:connected', ({ edge }: { edge: any }) => {
       const sourceId = edge.getSourceCellId();
       const targetId = edge.getTargetCellId();
-
       if (!sourceId || !targetId) {
         graph.removeEdge(edge);
         return;
       }
-
-      const targetNode = currentNodes.find((n) => n.id === targetId);
-      if (!targetNode) {
+      const result = addDependency(sourceId, targetId);
+      if (result.ok) message.success('依赖关系已添加');
+      else {
         graph.removeEdge(edge);
-        return;
+        message.warning(result.message);
       }
-
-      if (targetNode.dependencies.includes(sourceId)) {
-        graph.removeEdge(edge);
-        message.warning('依赖关系已存在');
-        return;
-      }
-
-      updateNode(targetId, {
-        dependencies: [...targetNode.dependencies, sourceId],
-      });
-
-      message.success('✅ 依赖关系已添加');
     });
 
     graph.on('node:mouseenter', ({ node }: { node: any }) => {
-      const edges = graph.getEdges();
-      edges.forEach((edge: any) => {
+      graph.getEdges().forEach((edge: any) => {
         const sourceId = edge.getSourceCellId();
         const targetId = edge.getTargetCellId();
         if (sourceId === node.id || targetId === node.id) {
-          edge.setAttrs({
-            line: {
-              stroke: '#1890ff',
-              strokeWidth: 2,
-            },
-          });
+          edge.setAttrs({ line: { stroke: '#1d4ed8', strokeWidth: 2 } });
         }
       });
     });
 
     graph.on('node:mouseleave', () => {
-      const edges = graph.getEdges();
-      edges.forEach((edge: any) => {
-        edge.setAttrs({
-          line: {
-            stroke: '#999999',
-            strokeWidth: 1.5,
-          },
-        });
+      graph.getEdges().forEach((edge: any) => {
+        edge.setAttrs({ line: { stroke: '#b9c4d4', strokeWidth: 1.4 } });
       });
     });
 
@@ -879,285 +495,226 @@ export function GraphCanvas({ onEditNode }: GraphCanvasProps) {
       closeDrawer();
       setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' });
       setSelectedEdgeId(null);
-
-      const edges = graph.getEdges();
-      edges.forEach((edge: any) => {
-        edge.setAttrs({
-          line: {
-            stroke: '#999999',
-            strokeWidth: 1.5,
-          },
-        });
+      graph.getEdges().forEach((edge: any) => {
+        edge.setAttrs({ line: { stroke: '#b9c4d4', strokeWidth: 1.4 } });
       });
     });
 
-    graph.on('blank:contextmenu', (e: any) => {
-      e.preventDefault?.();
-      const domEvent = e.originalEvent || e.nativeEvent || e;
-      const { clientX, clientY } = domEvent;
-      const containerRect = container.getBoundingClientRect();
-      const canvasX = clientX - containerRect.left;
-      const canvasY = clientY - containerRect.top;
+    const openContextMenu = (event: any, type: ContextMenuState['type'], extra: Partial<ContextMenuState>) => {
+      event.preventDefault?.();
+      const domEvent = event.originalEvent ?? event.nativeEvent ?? event;
+      const rect = container.getBoundingClientRect();
+      const x = (domEvent.clientX ?? 0) - rect.left;
+      const y = (domEvent.clientY ?? 0) - rect.top;
       setContextMenu({
         visible: true,
-        x: canvasX,
-        y: canvasY,
-        type: 'blank',
+        x: Math.min(x, Math.max(0, container.clientWidth - 180)),
+        y: Math.min(y, Math.max(0, container.clientHeight - 160)),
+        type,
+        ...extra,
       });
+    };
+
+    graph.on('blank:contextmenu', (event: any) => openContextMenu(event, 'blank', {}));
+    graph.on('node:contextmenu', (event: any) =>
+      openContextMenu(event, 'node', { nodeId: event.node?.id }),
+    );
+    graph.on('edge:contextmenu', (event: any) =>
+      openContextMenu(event, 'edge', { edgeId: event.edge?.id }),
+    );
+
+    graph.on('zoom', () => {
+      const { tx, ty } = graph.translate();
+      setCanvasView({ zoom: graph.zoom(), x: tx, y: ty });
+      closePopover();
+    });
+    graph.on('translate', () => {
+      const { tx, ty } = graph.translate();
+      setCanvasView({ zoom: graph.zoom(), x: tx, y: ty });
+      closePopover();
     });
 
-    graph.on('node:contextmenu', (e: any) => {
-      e.preventDefault?.();
-      const { node } = e;
-      const domEvent = e.originalEvent || e.nativeEvent || e;
-      const { clientX, clientY } = domEvent;
-      const containerRect = container.getBoundingClientRect();
-      const canvasX = clientX - containerRect.left;
-      const canvasY = clientY - containerRect.top;
-      setContextMenu({
-        visible: true,
-        x: canvasX,
-        y: canvasY,
-        type: 'node',
-        nodeId: node.id,
-      });
+    const observer = new ResizeObserver(() => {
+      const target = containerRef.current;
+      if (!target) return;
+      const nextWidth = target.clientWidth;
+      const nextHeight = target.clientHeight;
+      if (nextWidth === sizeRef.current.width && nextHeight === sizeRef.current.height) return;
+      sizeRef.current = { width: nextWidth, height: nextHeight };
+      graph.resize(nextWidth, nextHeight);
+      if (!manualPositionRef.current) {
+        resetNodePositions();
+        renderGraph();
+        requestAnimationFrame(() => centerContent(1.1));
+      }
     });
+    observer.observe(container);
 
-    graph.on('edge:contextmenu', (e: any) => {
-      e.preventDefault?.();
-      const { edge } = e;
-      const domEvent = e.originalEvent || e.nativeEvent || e;
-      const { clientX, clientY } = domEvent;
-      const containerRect = container.getBoundingClientRect();
-      const canvasX = clientX - containerRect.left;
-      const canvasY = clientY - containerRect.top;
-      setContextMenu({
-        visible: true,
-        x: canvasX,
-        y: canvasY,
-        type: 'edge',
-        edgeId: edge.id,
-      });
+    registerCanvasController({
+      fit: () => centerContent(1.1),
+      center: () => centerContent(1),
+      zoom: (factor: number) => {
+        const nextZoom = Math.min(
+          APP_CONFIG.layout.maxZoom,
+          Math.max(APP_CONFIG.layout.minZoom, graph.zoom() * factor),
+        );
+        graph.zoomTo(nextZoom);
+      },
+      relayout,
     });
 
     requestAnimationFrame(() => {
-      renderAllGraph();
+      renderGraph();
+      centerContent(1.1);
     });
 
-    const handleResize = () => {
-      if (containerRef.current && graphRef.current) {
-        graphRef.current.resize(
-          containerRef.current.clientWidth,
-          containerRef.current.clientHeight
-        );
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-
     return () => {
-      window.removeEventListener('resize', handleResize);
-      if (graphRef.current) {
-        graphRef.current.dispose();
-        graphRef.current = null;
-      }
-      if (clickTimerRef.current) {
-        clearTimeout(clickTimerRef.current);
-      }
+      observer.disconnect();
+      registerCanvasController(null);
+      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+      graph.dispose();
+      graphRef.current = null;
       setIsReady(false);
     };
-  }, [handleNodeClick, handleNodeDoubleClick, handleEdgeClick, renderAllGraph, canvasView, setCanvasView, closePopover, closeDrawer, updateNodePosition, currentNodes, updateNode]);
+    // 初始化仅执行一次；事件内部通过 useStore.getState() 读取最新数据
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  // 数据或搜索变化时增量重绘（保持画布交互状态）
   useEffect(() => {
-    if (isReady) {
-      requestAnimationFrame(() => {
-        updateGraphIncrementally();
-      });
-    }
-  }, [updateGraphIncrementally, isReady]);
+    if (!isReady) return;
+    requestAnimationFrame(() => renderGraph());
+  }, [isReady, renderGraph, currentNodes, searchKeyword, nodePositions, globalDisplayMode]);
 
+  // 切换层级/数据集时重新居中
   useEffect(() => {
-    if (!popoverVisibleNodeId) {
-      setPopoverPosition(null);
-    }
+    if (!isReady) return;
+    manualPositionRef.current = false;
+    requestAnimationFrame(() => centerContent(1.1));
+  }, [isReady, currentLevelId, activeDatasetId, centerContent]);
+
+  // 空状态或数据变化时，避免残留的弹层指向已删除节点
+  useEffect(() => {
+    if (!popoverVisibleNodeId) setPopoverAnchor(null);
   }, [popoverVisibleNodeId]);
 
-  useEffect(() => {
-    if (graphRef.current) {
-      const nodes = graphRef.current.getNodes();
-      nodes.forEach((node) => {
-        const nodeData = node.getData<CustomNodeData>();
-        if (nodeData?.node) {
-          const childrenHeight = nodeData.node.isExpanded
-            ? Math.max(60, nodeData.node.children.length * 60 + 80)
-            : 0;
-          const height = 60 + (nodeData.node.isExpanded ? childrenHeight : 0);
-          node.setSize(240, Math.max(60, height));
-        }
-      });
-    }
-  }, [currentNodes.map((n) => n.children.length)]);
+  const currentPopoverAnchor = useMemo(
+    () => (popoverVisibleNodeId && popoverAnchor ? popoverAnchor : null),
+    [popoverVisibleNodeId, popoverAnchor],
+  );
 
-  useEffect(() => {
-    resetNodePositions();
-  }, [currentLevelId, resetNodePositions]);
+  const closeContextMenu = () => setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' });
 
-  const currentPopoverNode = useMemo(() => {
-    if (!popoverVisibleNodeId || !popoverPosition) return null;
-    return {
-      nodeId: popoverVisibleNodeId,
-      x: popoverPosition.x,
-      y: popoverPosition.y,
-    };
-  }, [popoverVisibleNodeId, popoverPosition]);
+  const menuItemStyle = (color: string): React.CSSProperties => ({
+    padding: '10px 14px',
+    cursor: 'pointer',
+    color,
+    fontSize: 13,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  });
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: `calc(100vh - ${TOOLBAR_HEIGHT + BREADCRUMB_HEIGHT}px)`,
-        backgroundColor: '#f5f5f5',
-        position: 'relative',
-      }}
-    >
-      <div
-        ref={containerRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-        }}
-      />
+    <div className="lm-canvas">
+      <div ref={containerRef} className="lm-canvas-graph" />
 
-      {currentPopoverNode && (
+      {searchKeyword.trim() && (
+        <div className="lm-search-badge">
+          <Tag color={searchHits.size > 0 ? 'gold' : 'default'} style={{ marginInlineEnd: 0 }}>
+            「{searchKeyword.trim()}」匹配 {searchHits.size} 个节点
+          </Tag>
+        </div>
+      )}
+
+      {currentPopoverAnchor && (
         <NodePopover
-          nodeId={currentPopoverNode.nodeId}
-          x={currentPopoverNode.x}
-          y={currentPopoverNode.y}
+          nodeId={popoverVisibleNodeId ?? ''}
+          x={currentPopoverAnchor.x}
+          y={currentPopoverAnchor.y}
           onClose={closePopover}
         />
       )}
 
       {contextMenu.visible && (
         <div
-          style={{
-            position: 'absolute',
-            top: contextMenu.y,
-            left: contextMenu.x,
-            backgroundColor: '#ffffff',
-            borderRadius: '8px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-            border: '1px solid #e8e8e8',
-            zIndex: 1000,
-            minWidth: '160px',
-          }}
+          className="lm-context-menu"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+          onMouseLeave={closeContextMenu}
         >
           {contextMenu.type === 'blank' && (
             <>
               <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  color: '#333333',
-                  fontSize: '14px',
+                style={menuItemStyle('#1d4ed8')}
+                onClick={() => {
+                  closeContextMenu();
+                  setShowAddNodeModal(true);
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                onClick={handleAddNodeFromMenu}
               >
-                + 添加节点
+                <AppstoreAddOutlined /> 添加节点
               </div>
-              <div style={{ height: '1px', backgroundColor: '#e8e8e8' }} />
               <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  color: '#999999',
-                  fontSize: '13px',
+                style={menuItemStyle('#4a5568')}
+                onClick={() => {
+                  closeContextMenu();
+                  useStore.getState().canvasController?.relayout();
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                onClick={() => setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' })}
               >
-                取消
+                <AimOutlined /> 重新居中布局
+              </div>
+              <div className="lm-menu-divider" />
+              <div
+                style={menuItemStyle('#8a94a6')}
+                onClick={() => {
+                  closeContextMenu();
+                  resetToRoot();
+                }}
+              >
+                返回首页
               </div>
             </>
           )}
           {contextMenu.type === 'node' && contextMenu.nodeId && (
             <>
               <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  color: '#ef4444',
-                  fontSize: '14px',
+                style={menuItemStyle('#1d4ed8')}
+                onClick={() => {
+                  closeContextMenu();
+                  handleEditNode(contextMenu.nodeId!);
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fff2f0')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                onClick={() => handleDeleteNodeFromMenu(contextMenu.nodeId!)}
               >
-                删除节点
+                <EditOutlined /> 编辑节点
               </div>
-              <div style={{ height: '1px', backgroundColor: '#e8e8e8' }} />
               <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  color: '#999999',
-                  fontSize: '13px',
+                style={menuItemStyle('#b91c1c')}
+                onClick={() => {
+                  closeContextMenu();
+                  handleDeleteNode(contextMenu.nodeId!);
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                onClick={() => setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' })}
               >
-                取消
+                <DeleteOutlined /> 删除节点
               </div>
             </>
           )}
           {contextMenu.type === 'edge' && contextMenu.edgeId && (
             <>
               <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  color: '#1890ff',
-                  fontSize: '14px',
+                style={menuItemStyle('#1d4ed8')}
+                onClick={() => {
+                  handleEdgeEdit(contextMenu.edgeId!);
+                  closeContextMenu();
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e6f7ff')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                onClick={() => handleEditEdge(contextMenu.edgeId!)}
               >
-                编辑依赖关系
+                <EditOutlined /> 编辑依赖关系
               </div>
-              <div style={{ height: '1px', backgroundColor: '#e8e8e8' }} />
               <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  color: '#ef4444',
-                  fontSize: '14px',
+                style={menuItemStyle('#b91c1c')}
+                onClick={() => {
+                  handleEdgeDelete(contextMenu.edgeId!);
+                  closeContextMenu();
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fff2f0')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                onClick={() => handleDeleteEdge(contextMenu.edgeId!)}
               >
-                删除依赖关系
-              </div>
-              <div style={{ height: '1px', backgroundColor: '#e8e8e8' }} />
-              <div
-                style={{
-                  padding: '12px 16px',
-                  cursor: 'pointer',
-                  color: '#999999',
-                  fontSize: '13px',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#ffffff')}
-                onClick={() => setContextMenu({ visible: false, x: 0, y: 0, type: 'blank' })}
-              >
-                取消
+                <DeleteOutlined /> 删除依赖关系
               </div>
             </>
           )}
@@ -1165,120 +722,77 @@ export function GraphCanvas({ onEditNode }: GraphCanvasProps) {
       )}
 
       {currentNodes.length === 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            textAlign: 'center',
-            color: '#999999',
-            pointerEvents: 'none',
-            zIndex: 100,
-          }}
-        >
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>📭</div>
-          <div style={{ fontSize: '18px', marginBottom: '8px' }}>暂无画布数据</div>
-          <div style={{ fontSize: '14px' }}>请添加节点或加载数据</div>
+        <div className="lm-empty-state">
+          <div style={{ fontSize: 42, marginBottom: 12 }}>📭</div>
+          <div style={{ fontSize: 17, color: '#1f2d3d', marginBottom: 6 }}>当前层级暂无节点</div>
+          <div style={{ fontSize: 13, color: '#8a94a6', marginBottom: 16 }}>
+            可以从工具栏新增节点，或导入一份数据集
+          </div>
+          <Button type="primary" icon={<AppstoreAddOutlined />} onClick={() => setShowAddNodeModal(true)}>
+            新增节点
+          </Button>
         </div>
       )}
 
+      {graphError && (
+        <div className="lm-error-banner">{graphError}</div>
+      )}
+
       {selectedEdgeId && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            backgroundColor: '#ffffff',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-            zIndex: 100,
-            display: 'flex',
-            gap: '12px',
-            alignItems: 'center',
-          }}
-        >
-          <span style={{ fontSize: '14px', color: '#333333' }}>已选中依赖关系</span>
-          <Button
-            size="small"
-            onClick={() => {
-              handleEditEdge(selectedEdgeId!);
-            }}
-          >
+        <div className="lm-edge-bar">
+          <span style={{ fontSize: 13, color: '#4a5568' }}>已选中依赖关系</span>
+          <Button size="small" onClick={() => handleEdgeEdit(selectedEdgeId)}>
             编辑
           </Button>
-          <Button
-            danger
-            size="small"
-            onClick={() => {
-              handleDeleteEdge(selectedEdgeId!);
-            }}
-          >
+          <Button size="small" danger onClick={() => handleEdgeDelete(selectedEdgeId)}>
             删除
           </Button>
         </div>
       )}
 
-      <NodeModal
-        visible={showAddNodeModal}
-        onCancel={() => setShowAddNodeModal(false)}
-      />
+      <NodeModal visible={showAddNodeModal} onCancel={() => setShowAddNodeModal(false)} />
 
       <Modal
         title="编辑依赖关系"
-        open={showEdgeEditModal}
-        onCancel={() => {
-          setShowEdgeEditModal(false);
-          setEditingEdge(null);
-        }}
-        onOk={() => {
-          if (editingEdge) {
-            handleUpdateEdge(editingEdge.sourceId, editingEdge.targetId);
-          }
-        }}
-        width={450}
+        open={Boolean(editingEdge)}
+        onCancel={() => setEditingEdge(null)}
+        onOk={handleEdgeUpdate}
+        width={460}
+        destroyOnClose
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="lm-edge-editor">
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: '13px', color: '#666', marginBottom: '4px', display: 'block' }}>源节点</label>
+            <label className="lm-field-label">源节点</label>
             <Select
               value={editingEdge?.sourceId}
               onChange={(value) => {
-                if (editingEdge && value) {
+                if (editingEdge && typeof value === 'string') {
                   setEditingEdge({ ...editingEdge, sourceId: value });
                 }
               }}
               style={{ width: '100%' }}
-              options={currentNodes.map((n) => ({
-                value: n.id,
-                label: n.name,
-              }))}
+              options={currentNodes.map((item) => ({ value: item.id, label: item.name }))}
               placeholder="请选择源节点"
             />
           </div>
-          <div style={{ fontSize: '20px', color: '#1890ff', fontWeight: 'bold' }}>→</div>
+          <div className="lm-edge-arrow">→</div>
           <div style={{ flex: 1 }}>
-            <label style={{ fontSize: '13px', color: '#666', marginBottom: '4px', display: 'block' }}>目标节点</label>
+            <label className="lm-field-label">目标节点</label>
             <Select
               value={editingEdge?.targetId}
               onChange={(value) => {
-                if (editingEdge && value) {
+                if (editingEdge && typeof value === 'string') {
                   setEditingEdge({ ...editingEdge, targetId: value });
                 }
               }}
               style={{ width: '100%' }}
-              options={currentNodes.map((n) => ({
-                value: n.id,
-                label: n.name,
-              }))}
+              options={currentNodes.map((item) => ({ value: item.id, label: item.name }))}
               placeholder="请选择目标节点"
             />
           </div>
         </div>
-        <p style={{ fontSize: '12px', color: '#999', marginTop: '12px' }}>
-          依赖关系表示：源节点 → 目标节点（目标节点依赖于源节点）
+        <p style={{ fontSize: 12, color: '#8a94a6', marginTop: 12 }}>
+          依赖关系表示：源节点 → 目标节点（目标节点依赖于源节点）。保存时会进行循环依赖校验。
         </p>
       </Modal>
     </div>

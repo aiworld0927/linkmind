@@ -1,0 +1,627 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #f5f7fa;
+  color: #1f2d3d;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.lm-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+  min-width: 320px;
+}
+
+/* ---------- 顶部工具栏 ---------- */
+.lm-toolbar {
+  flex: none;
+  background: #ffffff;
+  border-bottom: 1px solid #e3e8ef;
+  padding: 10px 16px 8px;
+  z-index: 10;
+}
+
+.lm-toolbar-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.lm-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.lm-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #1d4ed8, #0f766e);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.5px;
+}
+
+.lm-brand-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.lm-brand-sub {
+  font-size: 11px;
+  color: #8a94a6;
+  margin-top: 2px;
+  max-width: 240px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-dataset-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lm-tab {
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid #d7dee8;
+  background: #ffffff;
+  color: #4a5568;
+  cursor: pointer;
+  font-size: 12.5px;
+  line-height: 1.4;
+  transition: all 0.16s ease;
+  max-width: 180px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-tab:hover {
+  border-color: #1d4ed8;
+  color: #1d4ed8;
+}
+
+.lm-tab.is-active {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.lm-toolbar-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lm-search {
+  width: 190px;
+}
+
+.lm-mode-select {
+  width: 118px;
+}
+
+.lm-toolbar-sub {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.lm-tool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.lm-mini {
+  height: 28px;
+  font-size: 12px;
+  padding: 0 10px;
+  color: #4a5568;
+  border-color: #d7dee8;
+  background: #ffffff;
+}
+
+.lm-mini:hover {
+  border-color: #1d4ed8 !important;
+  color: #1d4ed8 !important;
+}
+
+.lm-danger {
+  color: #b91c1c;
+}
+
+.lm-counter {
+  font-size: 12px;
+  color: #8a94a6;
+  background: #f1f4f9;
+  border-radius: 10px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+/* ---------- 面包屑 ---------- */
+.lm-breadcrumb-bar {
+  flex: none;
+  background: #ffffff;
+  border-bottom: 1px solid #eef1f6;
+  padding: 8px 18px;
+  font-size: 12.5px;
+}
+
+.lm-breadcrumb-link {
+  cursor: pointer;
+  color: #4a5568;
+  transition: color 0.15s ease;
+}
+
+.lm-breadcrumb-link:hover {
+  color: #1d4ed8;
+}
+
+.lm-breadcrumb-current {
+  color: #1f2d3d;
+  font-weight: 600;
+}
+
+/* ---------- 画布 ---------- */
+.lm-main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.lm-canvas {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.lm-canvas-graph {
+  position: absolute;
+  inset: 0;
+}
+
+.lm-node-card {
+  font-family: inherit;
+}
+
+.lm-node-header {
+  font-family: inherit;
+}
+
+.lm-node-toggle {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  flex: none;
+}
+
+.lm-node-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-node-count {
+  font-size: 11px;
+  color: #8a94a6;
+  background: #eef1f6;
+  border-radius: 8px;
+  padding: 1px 6px;
+  flex: none;
+}
+
+.lm-node-actions {
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  flex: none;
+}
+
+.lm-node-card:hover .lm-node-actions {
+  opacity: 1;
+}
+
+.lm-node-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  border-top: 1px solid #eef1f6;
+  padding: 0 6px 8px;
+}
+
+/* ---------- 笔记列表 ---------- */
+.lm-note-list {
+  font-family: inherit;
+}
+
+.lm-note-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px;
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 1;
+}
+
+.lm-note-item {
+  display: flex !important;
+  align-items: flex-start;
+  padding: 8px 4px !important;
+  border-block-end: 1px dashed #eef1f6 !important;
+  position: relative;
+}
+
+/* 操作按钮悬浮出现，避免挤占正文宽度导致文本过度换行 */
+.lm-note-item .ant-list-item-action {
+  position: absolute;
+  top: 4px;
+  right: 0;
+  margin: 0 !important;
+  padding: 0 2px !important;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.lm-note-item:hover .ant-list-item-action {
+  opacity: 1;
+}
+
+.lm-note-item .ant-list-item-action > li {
+  padding: 0 2px;
+}
+
+.lm-note-item:last-child {
+  border-block-end: none !important;
+}
+
+.lm-note-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: #8a94a6;
+}
+
+.lm-note-remark {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 120px;
+}
+
+.lm-note-time {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: #aab3c2;
+  white-space: nowrap;
+}
+
+/* ---------- 浮层 ---------- */
+.lm-context-menu {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+  z-index: 30;
+  min-width: 168px;
+  padding: 4px 0;
+  overflow: hidden;
+}
+
+.lm-context-menu > div:hover {
+  background: #f5f8ff;
+}
+
+.lm-menu-divider {
+  height: 1px;
+  background: #eef1f6;
+  margin: 4px 0;
+}
+
+.lm-search-badge {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 20;
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 3px 6px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.12);
+}
+
+.lm-empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  background: rgba(245, 247, 250, 0.88);
+  z-index: 12;
+}
+
+.lm-error-banner {
+  position: absolute;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  background: #b91c1c;
+  color: #ffffff;
+  font-size: 12.5px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  z-index: 20;
+}
+
+.lm-edge-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e3e8ef;
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.14);
+  z-index: 20;
+}
+
+.lm-edge-editor {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.lm-edge-arrow {
+  font-size: 18px;
+  color: #8a94a6;
+  padding-bottom: 6px;
+}
+
+.lm-field-label {
+  display: block;
+  font-size: 12px;
+  color: #4a5568;
+  margin-bottom: 6px;
+}
+
+.lm-popover-anchor {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  pointer-events: none;
+}
+
+.lm-popover-body {
+  width: min(320px, 82vw);
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.lm-popover-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin-bottom: 6px;
+  color: #1f2d3d;
+}
+
+.lm-drawer-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: #8a94a6;
+  margin-bottom: 12px;
+}
+
+/* ---------- 操作记录 ---------- */
+.lm-log-actions {
+  margin-bottom: 16px;
+}
+
+.lm-log-item {
+  display: block !important;
+  padding: 10px 0 !important;
+  border-block-end: 1px solid #f1f4f9 !important;
+}
+
+.lm-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lm-log-time {
+  font-size: 11px;
+  color: #aab3c2;
+}
+
+.lm-log-summary {
+  font-size: 13px;
+  color: #1f2d3d;
+  margin-top: 4px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.lm-log-target {
+  font-size: 11.5px;
+  color: #8a94a6;
+  margin-top: 2px;
+}
+
+/* ---------- 异常兜底 ---------- */
+.lm-fatal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  z-index: 100;
+  padding: 24px;
+}
+
+.lm-fatal-card {
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 460px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.lm-fatal-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #b91c1c;
+  margin-bottom: 10px;
+}
+
+.lm-fatal-desc {
+  font-size: 13px;
+  color: #4a5568;
+  line-height: 1.8;
+  margin: 0 0 18px;
+}
+
+.lm-fatal-btn {
+  border: none;
+  background: #1d4ed8;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* ---------- 响应式适配 ---------- */
+@media (max-width: 1180px) {
+  .lm-brand-sub {
+    display: none;
+  }
+
+  .lm-search {
+    width: 150px;
+  }
+}
+
+@media (max-width: 900px) {
+  .lm-brand {
+    display: none;
+  }
+
+  .lm-toolbar-main {
+    gap: 8px;
+  }
+
+  .lm-toolbar-actions {
+    margin-left: 0;
+  }
+
+  .lm-search {
+    width: 140px;
+  }
+
+  .lm-mode-select {
+    width: 104px;
+  }
+}
+
+@media (max-width: 640px) {
+  .lm-toolbar {
+    padding: 8px 10px;
+  }
+
+  .lm-toolbar-actions {
+    width: 100%;
+  }
+
+  .lm-search {
+    flex: 1;
+    width: auto;
+    min-width: 120px;
+  }
+
+  .lm-mode-select {
+    display: none;
+  }
+
+  .lm-counter {
+    display: none;
+  }
+
+  .lm-mini {
+    height: 26px;
+    padding: 0 8px;
+    font-size: 11.5px;
+  }
+
+  .lm-breadcrumb-bar {
+    padding: 6px 10px;
+  }
+
+  .lm-tab {
+    padding: 5px 11px;
+    font-size: 12px;
+  }
+}

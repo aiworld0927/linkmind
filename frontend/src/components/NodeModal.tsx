@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal, Form, Input, Select, message } from 'antd';
-import type { NodeItem, DisplayMode } from '@/types';
+import { APP_CONFIG } from '@/config/app';
+import type { DisplayMode, NodeItem } from '@/types';
 import { useStore } from '@/store';
 
 interface NodeModalProps {
@@ -9,111 +10,75 @@ interface NodeModalProps {
   editingNode?: NodeItem | null;
 }
 
+interface NodeFormValues {
+  name: string;
+  dependencies?: string[];
+  displayMode?: DisplayMode;
+}
+
 export function NodeModal({ visible, onCancel, editingNode }: NodeModalProps) {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<NodeFormValues>();
   const [nameError, setNameError] = useState('');
 
-  const {
-    currentNodes,
-    globalDisplayMode,
-    addNode,
-    updateNode,
-    checkCircleDepend,
-    checkNodeNameRepeat,
-  } = useStore();
+  const currentNodes = useStore((state) => state.currentNodes);
+  const globalDisplayMode = useStore((state) => state.globalDisplayMode);
+  const addNode = useStore((state) => state.addNode);
+  const updateNode = useStore((state) => state.updateNode);
+  const checkNodeNameRepeat = useStore((state) => state.checkNodeNameRepeat);
 
   useEffect(() => {
-    if (visible) {
-      setNameError('');
-      if (editingNode) {
-        form.setFieldsValue({
-          name: editingNode.name,
-          dependencies: editingNode.dependencies,
-          displayMode: editingNode.displayMode || globalDisplayMode,
-        });
-      } else {
-        form.resetFields();
-        form.setFieldsValue({
-          displayMode: globalDisplayMode,
-        });
-      }
+    if (!visible) return;
+    setNameError('');
+    if (editingNode) {
+      form.setFieldsValue({
+        name: editingNode.name,
+        dependencies: editingNode.dependencies,
+        displayMode: editingNode.displayMode,
+      });
+    } else {
+      form.resetFields();
+      form.setFieldsValue({ displayMode: globalDisplayMode, dependencies: [] });
     }
-  }, [visible, editingNode, globalDisplayMode]);
+  }, [visible, editingNode, globalDisplayMode, form]);
 
   const handleNameBlur = async () => {
-    const values = await form.validateFields(['name']);
-    if (!values.name) return;
-
-    const isRepeat = checkNodeNameRepeat(currentNodes, values.name, editingNode?.id);
-    if (isRepeat) {
-      setNameError('节点名称已存在');
-    } else {
-      setNameError('');
+    try {
+      const values = await form.validateFields(['name']);
+      const name = values.name?.trim();
+      if (!name) return;
+      setNameError(checkNodeNameRepeat(currentNodes, name, editingNode?.id) ? '节点名称已存在' : '');
+    } catch {
+      // 必填校验由表单负责
     }
   };
 
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields();
-      const { name, dependencies, displayMode } = values;
+      const draft = {
+        name: (values.name ?? '').trim(),
+        dependencies: values.dependencies ?? [],
+        displayMode: values.displayMode ?? globalDisplayMode,
+      };
 
-      if (!name.trim()) {
-        message.error('⚠️ 请输入节点名称');
-        return;
-      }
+      const result = editingNode
+        ? updateNode(editingNode.id, draft)
+        : addNode(draft);
 
-      const isRepeat = checkNodeNameRepeat(currentNodes, name, editingNode?.id);
-      if (isRepeat) {
-        message.error('⚠️ 节点名称已存在，请使用其他名称');
-        return;
-      }
-
-      const selfId = editingNode?.id || `node-${Date.now()}`;
-      if (checkCircleDepend(currentNodes, dependencies, selfId)) {
-        message.error('⚠️ 检测到循环依赖，请调整依赖关系');
-        return;
-      }
-
-      if (editingNode) {
-        updateNode(editingNode.id, {
-          name,
-          dependencies,
-          displayMode,
-        });
-        message.success('✅ 节点更新成功');
+      if (result.ok) {
+        message.success(result.message);
+        onCancel();
       } else {
-        const newNode: NodeItem = {
-          id: `node-${Date.now()}`,
-          name,
-          dependencies,
-          children: [],
-          isExpanded: false,
-          displayMode,
-          createTime: new Date().toISOString(),
-        };
-        addNode(newNode);
-        message.success('✅ 节点创建成功');
+        message.error(result.message);
       }
-
-      onCancel();
-    } catch (error) {
-      console.error('Form validation failed:', error);
-      message.error('⚠️ 表单校验失败，请检查输入内容');
+    } catch {
+      message.error('表单校验失败，请检查输入内容');
     }
   };
 
   const nodeOptions = currentNodes
     .filter((node) => node.id !== editingNode?.id)
-    .map((node) => ({
-      value: node.id,
-      label: node.name,
-    }));
-
-  const displayModeOptions: { value: DisplayMode; label: string }[] = [
-    { value: 'inner', label: '内嵌' },
-    { value: 'popover', label: '悬浮弹窗' },
-    { value: 'drawer', label: '右侧抽屉' },
-  ];
+    .map((node) => ({ value: node.id, label: node.name }));
 
   return (
     <Modal
@@ -122,42 +87,37 @@ export function NodeModal({ visible, onCancel, editingNode }: NodeModalProps) {
       onCancel={onCancel}
       onOk={handleSubmit}
       width={500}
+      destroyOnClose
+      maskClosable={false}
+      okText="保存"
+      cancelText="取消"
     >
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical" preserve={false}>
         <Form.Item
           name="name"
           label="节点名称"
-          rules={[{ required: true, message: '请输入节点名称' }]}
           validateStatus={nameError ? 'error' : ''}
-          help={nameError || ''}
+          help={nameError || undefined}
+          rules={[
+            { required: true, whitespace: true, message: '请输入节点名称' },
+            { max: APP_CONFIG.limits.maxNameLength, message: `最多 ${APP_CONFIG.limits.maxNameLength} 个字符` },
+          ]}
         >
-          <Input
-            placeholder="请输入节点名称"
-            onBlur={handleNameBlur}
-          />
+          <Input placeholder="请输入节点名称" maxLength={APP_CONFIG.limits.maxNameLength} showCount onBlur={handleNameBlur} />
         </Form.Item>
 
-        <Form.Item
-          name="dependencies"
-          label="依赖节点"
-        >
+        <Form.Item name="dependencies" label="依赖节点">
           <Select
             mode="multiple"
             placeholder="请选择依赖节点（可多选）"
             options={nodeOptions}
             style={{ width: '100%' }}
+            allowClear
           />
         </Form.Item>
 
-        <Form.Item
-          name="displayMode"
-          label="附属展示模式"
-        >
-          <Select
-            placeholder="选择展示模式"
-            options={displayModeOptions}
-            style={{ width: '100%' }}
-          />
+        <Form.Item name="displayMode" label="附属展示模式">
+          <Select placeholder="选择展示模式" options={APP_CONFIG.displayModeOptions} style={{ width: '100%' }} />
         </Form.Item>
       </Form>
     </Modal>
