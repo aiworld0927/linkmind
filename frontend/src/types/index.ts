@@ -32,6 +32,11 @@ export interface TreeMap {
   props: TreeNodeProp[];
   nodes: TreeNode[];
   repo?: RepoRef | null;
+  /** C-1 列表聚合计数（未加载整树时由后端提供） */
+  node_count?: number;
+  prop_count?: number;
+  /** 是否已从服务端加载整棵树；false 表示仅有列表摘要 */
+  loaded?: boolean;
 }
 
 export interface NodeViewModel {

@@ -31,7 +31,7 @@ services:
       start_period: 30s
     restart: unless-stopped
 
-  # 主数据存储：知识仓库登记、地图/节点/属性/文档、Git 动作审计、文档向量
+  # 主数据存储：仓库登记、地图/节点/属性、Git 审计（5 张业务表）
   postgres:
     image: pgvector/pgvector:pg17
     container_name: linkmind-postgres
@@ -71,8 +71,18 @@ services:
       - NEO4J_PASSWORD=password
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-linkmind}:${POSTGRES_PASSWORD:-linkmind}@postgres:5432/${POSTGRES_DB:-linkmind}
       - KNOWLEDGE_ROOT=/app/knowledge
+      # ---- 鉴权与跨域（容器内不读取 backend/.env，必须由 compose 注入）----
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES:-120}
+      - ALLOW_ANONYMOUS=${ALLOW_ANONYMOUS:-true}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080}
+      - DB_POOL_SIZE=${DB_POOL_SIZE:-5}
+      - DB_MAX_OVERFLOW=${DB_MAX_OVERFLOW:-10}
       - GIT_AUTHOR_NAME=${GIT_AUTHOR_NAME:-LinkMind}
       - GIT_AUTHOR_EMAIL=${GIT_AUTHOR_EMAIL:-linkmind@local}
+      - GIT_OPERATION_TIMEOUT=${GIT_OPERATION_TIMEOUT:-60}
+      - GIT_MAX_FILE_BYTES=${GIT_MAX_FILE_BYTES:-262144}
       - PYTHONUNBUFFERED=1
     volumes:
       # 知识仓库根目录需可写（真实 Git 提交/合并）

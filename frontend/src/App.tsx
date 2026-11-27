@@ -5,8 +5,8 @@ import HomePage from '@/pages/HomePage';
 import MindMapPage from '@/pages/MindMapPage';
 import GitPage from '@/pages/GitPage';
 import NotePage from '@/pages/NotePage';
+import Modals from '@/features/mindmap/Modals';
 import { useAppStore } from '@/store';
-import type { TreeMap } from '@/types';
 
 /**
  * 顶栏逻辑：根据当前路由 / activeMapId 决定显示 `#homeTools` 还是 `#mapTools`。
@@ -51,8 +51,7 @@ function TopBar(): JSX.Element {
   }, []);
 
   const doExport = (): void => {
-    exportMaps();
-    logOp('导出数据');
+    void exportMaps();
   };
 
   const doFit = (): void => {
@@ -192,8 +191,13 @@ function TopBar(): JSX.Element {
 
 function RouterView(): JSX.Element {
   const location = useLocation();
-  // HomePage 里的地图删除按钮使用了 modal index，store 里没有 delete 地图的 modal——
-  // 我们补一个 MapModal 处理 mode: delete
+  const loadMaps = useAppStore((s) => s.loadMaps);
+
+  // 应用启动时从后端加载地图列表（所有数据以数据库为准）
+  useEffect(() => {
+    void loadMaps();
+  }, [loadMaps]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <TopBar />
@@ -205,6 +209,8 @@ function RouterView(): JSX.Element {
           <Route path="/note" element={<NotePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {/* 全局 Modal 容器：所有路由共享 Map/Node/Prop/Picker/Repo 弹窗 */}
+        <Modals />
       </div>
     </div>
   );
@@ -219,16 +225,3 @@ export default function App(): JSX.Element {
     </ConfigProvider>
   );
 }
-
-// 给 store 补一个 exportMaps action
-declare module '@/store' {
-  interface StoreState {
-    exportMaps: () => void;
-  }
-}
-
-// 运行时补充：如果 store 里没有 exportMaps，在这里挂一个
-// （我们通过 declare module 扩展类型；实现挂在 store/index.ts 里已经有了）
-
-// 让 TS 不抱怨未使用的导入（TreeMap）
-void 0 as unknown as TreeMap;

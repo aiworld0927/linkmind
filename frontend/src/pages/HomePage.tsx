@@ -4,11 +4,13 @@ import { countNodes, countProps } from '@/utils/layout';
 import { PALETTE } from '@/config/maps';
 
 /**
- * 原型 HomePage：`#home .home-inner h1 选择知识地图` + `#dsGrid .ds-card` 网格 + `.new-card`。
+ * HomePage：从后端 C-1 拉取地图列表，网格展示；新增/编辑/删除全部走后端。
  */
 export function HomePage(): JSX.Element {
   const navigate = useNavigate();
   const maps = useAppStore((s) => s.maps);
+  const mapsLoading = useAppStore((s) => s.mapsLoading);
+  const mapsError = useAppStore((s) => s.mapsError);
   const enterMap = useAppStore((s) => s.enterMap);
   const openModal = useAppStore((s) => s.openModal);
 
@@ -17,6 +19,14 @@ export function HomePage(): JSX.Element {
       <div className="home-inner">
         <h1>选择知识地图</h1>
         <p className="sub">每个区块是一张脑图的根节点，点击进入</p>
+        {mapsError && (
+          <div className="empty-state" role="alert" style={{ color: '#b91c1c' }}>
+            加载失败：{mapsError}
+          </div>
+        )}
+        {mapsLoading && maps.length === 0 && (
+          <div className="empty-state">加载知识地图…</div>
+        )}
         <div id="dsGrid">
           {maps.map((m, i) => (
             <div
@@ -33,10 +43,10 @@ export function HomePage(): JSX.Element {
               <p>{m.desc || ''}</p>
               <div className="stats">
                 <span>
-                  <b>{countNodes(m.nodes)}</b>节点
+                  <b>{m.loaded ? countNodes(m.nodes) : m.node_count ?? 0}</b>节点
                 </span>
                 <span>
-                  <b>{countProps(m)}</b>属性
+                  <b>{m.loaded ? countProps(m) : m.prop_count ?? 0}</b>属性
                 </span>
               </div>
               {m.repo?.name && <div className="repo-tag">仓库：{m.repo.name}</div>}

@@ -82,6 +82,7 @@ export function SideDrawer(): JSX.Element {
                       md: markdownize(p),
                       mapId: activeMapId || '',
                       nodeId: info.isRoot ? 'ROOT' : info.node!.id,
+                      propId: p.prop_id || '',
                       propIndex: i,
                     };
                     navigate(
@@ -89,9 +90,9 @@ export function SideDrawer(): JSX.Element {
                         payload.node,
                       )}&md=${encodeURIComponent(payload.md)}&mapId=${encodeURIComponent(
                         payload.mapId,
-                      )}&nodeId=${encodeURIComponent(payload.nodeId)}&propIndex=${
-                        payload.propIndex
-                      }&mode=view`,
+                      )}&nodeId=${encodeURIComponent(payload.nodeId)}&propId=${encodeURIComponent(
+                        payload.propId,
+                      )}&propIndex=${payload.propIndex}&mode=view`,
                     );
                   }}
                 />

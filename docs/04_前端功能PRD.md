@@ -328,9 +328,10 @@ LinkMind 知识图谱前端是一个基于 React + X6 的可视化知识管理�
 
 ### 6.3 数据持久化
 
-- 使用 localStorage 存储核心状态
-- 每次状态变更自动同步到 localStorage
-- 页面加载时从 localStorage 恢复状态
+- 知识地图、节点、属性、笔记统一通过后端 API（`/api/v1`）持久化到 **PostgreSQL 主库**（5 张业务表：`git_repos` / `git_actions` / `maps` / `nodes` / `props`）
+- 状态变更成功后以服务端返回的整树刷新本地缓存；页面刷新、关闭浏览器后重新打开均不丢数据
+- `localStorage` 不再承载业务数据，仅保留瞬时 UI 状态（选中、折叠、弹窗等）
+- 导入/导出由后端聚合处理：导入 `POST /api/v1/maps/import`（服务端扫描目录并落库），导出 `GET /api/v1/maps/export`
 
 ## 七、性能优化
 
@@ -390,9 +391,14 @@ type DisplayMode = 'inner' | 'popover' | 'drawer';
 
 ### 9.1 前端代理配置
 
+- 开发环境前端端口 `5173`，生产环境由 Docker nginx 提供，端口 `8080`
+- API 基础地址由 `VITE_API_BASE_URL` 决定，缺省回落 `/api/v1`；后端端口 `8000`
+- 开发环境若将 `VITE_API_BASE_URL` 设为相对路径 `/api/v1`，则走 Vite 代理：
+
 ```typescript
 // vite.config.ts
 server: {
+  port: 5173,
   proxy: {
     '/api': {
       target: 'http://localhost:8000',
@@ -402,11 +408,13 @@ server: {
 }
 ```
 
+> 若 `VITE_API_BASE_URL` 设为 `http://localhost:8000/api/v1`（浏览器直连），后端 `CORS_ORIGINS` 必须包含 `http://localhost:5173`；生产环境同源 `/api/v1` 由 nginx 转发到 `backend:8000`。
+
 ### 9.2 调用方式
 
-- 当前版本前端使用本地 Zustand 状态管理
-- 后端 API 用于持久化存储到 Neo4j
-- 数据导入导出基于 localStorage 数据
+- 前端使用 Zustand 管理 UI 状态，业务数据经 `features/mindmap/api.ts`、`features/git/api.ts`、`utils/api.ts` 调用后端 `/api/v1`
+- 后端 API 将数据持久化到 **PostgreSQL 主库**（Neo4j 仅保留健康检查，可选，不保存主数据）
+- 数据导入导出调用后端接口（`/api/v1/maps/import`、`/api/v1/maps/export`），不再基于 localStorage 数据
 
 ## 十、浏览器兼容性
 

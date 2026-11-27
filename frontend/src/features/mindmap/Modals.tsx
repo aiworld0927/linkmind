@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useAppStore, useActiveMap, ModalState, selectInfo } from '@/store';
 import type { FsDirListing, GitRepo } from '@/features/git/types';
 import { gitApi } from '@/features/git/api';
-import { fetchFsTree } from '@/utils/api';
-import type { TreeMap, TreeNode } from '@/types';
-import { v4 as uuidv4 } from 'uuid';
+import { errorMessage } from '@/utils/http';
 
 /** Modal 统一容器 */
 function ModalWrap({
@@ -23,26 +21,35 @@ function ModalWrap({
   onClose: () => void;
   children: React.ReactNode;
   okText?: string;
-  onOk?: () => string | null | undefined | void;
+  onOk?: () => string | null | undefined | void | Promise<string | null | undefined | void>;
   okClass?: string;
   err?: string;
   bodyMaxWidth?: number;
 }): JSX.Element {
   const [errMsg, setErrMsg] = useState<string>(err ?? '');
+  const [busy, setBusy] = useState(false);
   useEffect(() => setErrMsg(err ?? ''), [err]);
 
-  const handleOk = (): void => {
+  const handleOk = async (): Promise<void> => {
     if (!onOk) {
       onClose();
       return;
     }
-    const r = onOk();
-    if (typeof r === 'string' && r) {
-      setErrMsg(r);
-      return;
+    setBusy(true);
+    try {
+      const r = await onOk();
+      if (typeof r === 'string' && r) {
+        setErrMsg(r);
+        return;
+      }
+      setErrMsg('');
+      onClose();
+    } catch (e) {
+      // 后端 400/404/422 等统一在弹窗内展示
+      setErrMsg(errorMessage(e, '操作失败'));
+    } finally {
+      setBusy(false);
     }
-    setErrMsg('');
-    onClose();
   };
 
   if (!open) return <div id="modal" />;
@@ -58,12 +65,12 @@ function ModalWrap({
         <div className="modal-bd">{children}</div>
         <div className="modal-err">{errMsg}</div>
         <div className="modal-ft">
-          <button className="mini" onClick={onClose}>
+          <button className="mini" onClick={onClose} disabled={busy}>
             取消
           </button>
           {onOk && (
-            <button className={okClass} onClick={handleOk}>
-              {okText}
+            <button className={okClass} onClick={() => void handleOk()} disabled={busy}>
+              {busy ? '处理中…' : okText}
             </button>
           )}
         </div>
@@ -101,8 +108,8 @@ function MapModal(): JSX.Element {
 
   if (modal.mode === 'delete') {
     const target = maps[modal.index];
-    const onOk = (): void => {
-      if (target) deleteMap(target.id);
+    const onOk = async (): Promise<void> => {
+      if (target) await deleteMap(target.id);
     };
     return (
       <ModalWrap
@@ -125,15 +132,15 @@ function MapModal(): JSX.Element {
   const editing = modal.mode === 'edit' && modal.index >= 0;
   const targetMap = editing ? maps[modal.index] : null;
 
-  const onOk = (): string | null => {
+  const onOk = async (): Promise<string | null> => {
     const t = title.trim();
     if (!t) return '请填写地图名称';
     if (t.length > 30) return '地图名称不能超过 30 个字';
     if (maps.some((m, i) => m.title === t && i !== modal.index)) return '已存在同名知识地图';
     if (editing && targetMap) {
-      updateMap(targetMap.id, { title: t, desc: desc.trim() });
+      await updateMap(targetMap.id, { title: t, desc: desc.trim() });
     } else {
-      createMap(t, desc.trim());
+      await createMap(t, desc.trim());
     }
     return null;
   };
@@ -191,14 +198,14 @@ function NodeModal(): JSX.Element {
   if (modal.mode === 'add-child') {
     const info = selectInfo(map, modal.nodeId);
     const parentName = info ? info.name : map.title;
-    const onOk = (): string | null => {
+    const onOk = async (): Promise<string | null> => {
       const n = name.trim();
       if (!n) return '请填写节点名称';
       if (n.length > 30) return '节点名称不能超过 30 个字';
       // 同级重名检查
       const list = info?.isRoot ? map.nodes : info?.node?.children ?? [];
       if (list.some((x) => x.name === n)) return '同级已存在同名节点';
-      addNode(modal.nodeId, n);
+      await addNode(modal.nodeId, n);
       return null;
     };
     return (
@@ -219,7 +226,7 @@ function NodeModal(): JSX.Element {
   if (modal.mode === 'rename') {
     const info = selectInfo(map, modal.nodeId);
     const isRoot = info?.isRoot ?? modal.nodeId === 'ROOT';
-    const onOk = (): string | null => {
+    const onOk = async (): Promise<string | null> => {
       const n = name.trim();
       if (!n) return '节点名称不能为空';
       if (n.length > 30) return '节点名称不能超过 30 个字';
@@ -227,9 +234,9 @@ function NodeModal(): JSX.Element {
       if (isRoot) {
         // ROOT 即地图 title
         const updateMap = useAppStore.getState().updateMap;
-        updateMap(map.id, { title: n });
+        await updateMap(map.id, { title: n });
       } else {
-        renameNode(modal.nodeId, n);
+        await renameNode(modal.nodeId, n);
       }
       return null;
     };
@@ -248,8 +255,8 @@ function NodeModal(): JSX.Element {
 
   if (modal.mode === 'delete') {
     const info = selectInfo(map, modal.nodeId);
-    const onOk = (): void => {
-      deleteNode(modal.nodeId);
+    const onOk = async (): Promise<void> => {
+      await deleteNode(modal.nodeId);
     };
     return (
       <ModalWrap
@@ -310,7 +317,7 @@ function PropModal(): JSX.Element {
   if (modal.mode === 'delete') {
     const info = selectInfo(map, modal.nodeId);
     const p = info?.props[modal.propIndex];
-    const onOk = (): void => deleteProp(modal.nodeId, modal.propIndex);
+    const onOk = async (): Promise<void> => deleteProp(modal.nodeId, modal.propIndex);
     return (
       <ModalWrap
         open
@@ -328,7 +335,7 @@ function PropModal(): JSX.Element {
   }
 
   const editing = modal.mode === 'edit';
-  const onOk = (): string | null => {
+  const onOk = async (): Promise<string | null> => {
     const l = label.trim();
     if (!l) return '请填写属性名';
     if (l.length > 30) return '属性名不能超过 30 个字';
@@ -338,8 +345,8 @@ function PropModal(): JSX.Element {
       .map((s) => s.trim())
       .filter(Boolean);
     const prop = { label: l, note: { c, t, r: r.trim() } };
-    if (editing) updateProp(modal.nodeId, modal.propIndex, prop);
-    else addProp(modal.nodeId, prop);
+    if (editing) await updateProp(modal.nodeId, modal.propIndex, prop);
+    else await addProp(modal.nodeId, prop);
     return null;
   };
 
@@ -460,21 +467,22 @@ function PickerModal(): JSX.Element {
   };
 
   const onImport = async (): Promise<void> => {
-    const { repoId, repos, listing } = state;
+    const { repoId, listing } = state;
     if (!repoId || !listing) return;
-    const repo = repos.find((r) => r.id === repoId);
-    if (!repo) return;
     setState((s) => ({ ...s, importing: true, err: '' }));
     try {
-      const tree = await fetchFsTree(listing.path);
-      const map = mapFromTree(tree, repo);
-      importMap(map);
+      // C-7：后端扫描目录并直接落库，前端不再自行构造 TreeMap
+      await importMap({
+        path: listing.path,
+        repo_id: repoId,
+        title: listing.name,
+      });
       closeModal();
     } catch (e) {
       setState((s) => ({
         ...s,
         importing: false,
-        err: e instanceof Error ? e.message : '导入失败',
+        err: errorMessage(e, '导入失败'),
       }));
     }
   };
@@ -725,43 +733,6 @@ export function Modals(): JSX.Element {
       {modal?.kind === 'repo' && <RepoModal />}
     </>
   );
-}
-
-// ---------- 目录树 → TreeMap ----------
-interface FsTreeNodeApi {
-  name: string;
-  path: string;
-  props?: { label: string; content?: string; path?: string; doc?: boolean }[];
-  children?: FsTreeNodeApi[];
-}
-
-function dirToNode(dir: FsTreeNodeApi): TreeNode {
-  return {
-    id: uuidv4(),
-    name: dir.name,
-    props: (dir.props || []).map((p) => ({
-      label: p.label,
-      doc: true,
-      note: { c: p.content || '', t: [], r: p.path || '' },
-    })),
-    children: (dir.children || []).map(dirToNode),
-  };
-}
-
-function mapFromTree(tree: FsTreeNodeApi, repo: GitRepo): TreeMap {
-  const rootProps = (tree.props || []).map((p) => ({
-    label: p.label,
-    doc: true,
-    note: { c: p.content || '', t: [], r: p.path || '' },
-  }));
-  return {
-    id: uuidv4(),
-    title: tree.name,
-    desc: `知识仓库目录：${repo.name} / ${tree.path || ''}`,
-    repo: { id: repo.id, name: repo.name },
-    props: rootProps,
-    nodes: (tree.children || []).map(dirToNode),
-  };
 }
 
 export default Modals;

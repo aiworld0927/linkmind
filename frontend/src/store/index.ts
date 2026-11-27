@@ -1,13 +1,9 @@
 import { create } from 'zustand';
-import type {
-  RepoRef,
-  TreeNode,
-  TreeNodeProp,
-  TreeMap,
-} from '@/types';
-import { SEED_MAPS, cloneMaps } from '@/config/maps';
-import { newId, stamp } from '@/utils/ids';
-import { VIEW_MAX_K, VIEW_MIN_K } from '@/utils/layout';
+import type { NotePayload, RepoRef, TreeNode, TreeNodeProp, TreeMap } from '@/types';
+import { countNodes, countProps, VIEW_MAX_K, VIEW_MIN_K } from '@/utils/layout';
+import { errorMessage } from '@/utils/http';
+import { mindmapApi } from '@/features/mindmap/api';
+import type { ImportMapPayload, MapSummary } from '@/features/mindmap/api';
 
 // ---------- Modal 类型 ----------
 export interface MapModalState {
@@ -68,7 +64,10 @@ export interface CtxMenuState {
 const MAX_LOG = 200;
 
 // ---------- 递归查找 / 替换工具 ----------
-function findNode(map: TreeMap, id: string): { node: TreeNode; parent: TreeNode | null; parentIsMap: boolean } | null {
+function findNode(
+  map: TreeMap,
+  id: string,
+): { node: TreeNode; parent: TreeNode | null; parentIsMap: boolean } | null {
   function iter(
     list: TreeNode[],
     parent: TreeNode | null,
@@ -81,6 +80,43 @@ function findNode(map: TreeMap, id: string): { node: TreeNode; parent: TreeNode 
     return null;
   }
   return iter(map.nodes, null);
+}
+
+/** 取某个节点（ROOT 取地图级）的属性数组 */
+function propsOf(map: TreeMap, nodeId: string): TreeNodeProp[] {
+  if (nodeId === 'ROOT') return map.props || [];
+  return findNode(map, nodeId)?.node.props || [];
+}
+
+/** 统一整理服务端 MapOut：补默认值 + 重新计算计数 */
+function withCounts(map: TreeMap): TreeMap {
+  const normalized: TreeMap = {
+    ...map,
+    desc: map.desc ?? '',
+    props: map.props ?? [],
+    nodes: map.nodes ?? [],
+    loaded: true,
+  };
+  return {
+    ...normalized,
+    node_count: countNodes(normalized.nodes),
+    prop_count: countProps(normalized),
+  };
+}
+
+/** C-1 列表摘要 → 前端 TreeMap（未加载整树） */
+function summaryToMap(item: MapSummary): TreeMap {
+  return {
+    id: item.id,
+    title: item.title,
+    desc: item.desc ?? '',
+    props: [],
+    nodes: [],
+    repo: item.repo ?? null,
+    node_count: item.node_count ?? 0,
+    prop_count: item.prop_count ?? 0,
+    loaded: false,
+  };
 }
 
 // ---------- Store ----------
@@ -96,6 +132,12 @@ interface StoreState {
   ctxMenu: CtxMenuState | null;
   modal: ModalState | null;
   logOpen: boolean;
+
+  // —— 加载状态 ——
+  mapsLoading: boolean;
+  mapsError: string | null;
+  treeLoading: boolean;
+  treeError: string | null;
 
   // —— 视图控制 ——
   enterMap: (mapId: string) => void;
@@ -119,46 +161,66 @@ interface StoreState {
   openModal: (m: ModalState) => void;
   closeModal: () => void;
 
-  // —— 地图 CRUD ——
-  createMap: (title: string, desc?: string) => TreeMap;
-  updateMap: (mapId: string, patch: { title?: string; desc?: string; repo?: RepoRef | null }) => void;
-  deleteMap: (mapId: string) => void;
-  importMap: (map: TreeMap) => void;
+  // —— 服务端数据加载 ——
+  loadMaps: (keyword?: string) => Promise<void>;
+  ensureTree: (mapId: string) => Promise<TreeMap | null>;
+  refreshTree: (mapId: string) => Promise<TreeMap | null>;
+
+  // —— 地图 CRUD（全部走后端落库）——
+  createMap: (title: string, desc?: string) => Promise<TreeMap>;
+  updateMap: (
+    mapId: string,
+    patch: { title?: string; desc?: string; repo?: RepoRef | null },
+  ) => Promise<TreeMap>;
+  deleteMap: (mapId: string) => Promise<void>;
+  importMap: (payload: ImportMapPayload) => Promise<TreeMap>;
 
   // —— 节点 CRUD ——
-  addNode: (parentId: string, name: string) => TreeNode;
-  renameNode: (nodeId: string, name: string) => void;
-  deleteNode: (nodeId: string) => void;
+  addNode: (parentId: string, name: string) => Promise<TreeNode>;
+  renameNode: (nodeId: string, name: string) => Promise<void>;
+  deleteNode: (nodeId: string) => Promise<void>;
 
   // —— 属性 CRUD ——
-  addProp: (nodeId: string, prop: TreeNodeProp) => void;
-  updateProp: (nodeId: string, idx: number, prop: TreeNodeProp) => void;
-  deleteProp: (nodeId: string, idx: number) => void;
+  addProp: (nodeId: string, prop: { label: string; note: NotePayload }) => Promise<void>;
+  updateProp: (nodeId: string, idx: number, prop: TreeNodeProp) => Promise<void>;
+  deleteProp: (nodeId: string, idx: number) => Promise<void>;
+
+  // —— 笔记 ——
+  saveNote: (
+    mapId: string,
+    nodeId: string,
+    propId: string,
+    payload: { content: string; tags?: string[]; remark?: string },
+  ) => Promise<void>;
 
   // —— 内部工具 ——
   logOp: (text: string) => void;
-  exportMaps: () => void;
-}
-
-function initialState(): {
-  maps: TreeMap[];
-} {
-  return { maps: cloneMaps(SEED_MAPS) };
+  exportMaps: () => Promise<void>;
 }
 
 export const useAppStore = create<StoreState>((set, get) => {
-  const { maps: initialMaps } = initialState();
-
   const logOp = (text: string): void => {
     set((s) => {
-      const next = [{ t: stamp(), text }, ...s.log];
+      const next = [{ t: new Date().toISOString(), text }, ...s.log];
       if (next.length > MAX_LOG) next.length = MAX_LOG;
       return { log: next };
     });
   };
 
+  /** 用服务端返回的整树替换本地缓存 */
+  const applyTree = (map: TreeMap): void => {
+    const next = withCounts(map);
+    set((s) => {
+      const exists = s.maps.some((m) => m.id === next.id);
+      return {
+        maps: exists ? s.maps.map((m) => (m.id === next.id ? next : m)) : [...s.maps, next],
+        treeError: null,
+      };
+    });
+  };
+
   return {
-    maps: initialMaps,
+    maps: [],
     activeMapId: null,
     collapsed: new Set<string>(),
     selectedId: null,
@@ -169,6 +231,11 @@ export const useAppStore = create<StoreState>((set, get) => {
     ctxMenu: null,
     modal: null,
     logOpen: false,
+
+    mapsLoading: false,
+    mapsError: null,
+    treeLoading: false,
+    treeError: null,
 
     // 视图
     enterMap: (mapId) => {
@@ -208,7 +275,6 @@ export const useAppStore = create<StoreState>((set, get) => {
     },
     expandAll: () => set({ collapsed: new Set<string>() }),
     toLevel: (d) => {
-      // 收起到一级：清 folded 后把所有顶层节点（ROOT 的 children）收起来
       const state = get();
       if (!state.activeMapId) {
         logOp(`收起到第 ${d} 层`);
@@ -225,7 +291,6 @@ export const useAppStore = create<StoreState>((set, get) => {
       logOp(`收起到第 ${d} 层`);
     },
     fitView: () => {
-      // 具体 fit 计算需要画布尺寸，在 MindCanvas 组件里做，这里只是占位——实际调用组件内部 fit()。
       get().logOp('居中布局');
     },
     zoom: (f) => {
@@ -247,26 +312,87 @@ export const useAppStore = create<StoreState>((set, get) => {
     openModal: (m) => set({ modal: m }),
     closeModal: () => set({ modal: null }),
 
-    // 地图 CRUD
-    createMap: (title, desc) => {
-      const newMap: TreeMap = {
-        id: 'map-' + newId(),
-        title,
-        desc: desc || '',
-        props: [],
-        nodes: [],
-      };
-      set((s) => ({ maps: [...s.maps, newMap] }));
+    // ---------------- 服务端加载 ----------------
+    loadMaps: async (keyword) => {
+      set({ mapsLoading: true, mapsError: null });
+      try {
+        const collected: MapSummary[] = [];
+        let page = 1;
+        let total = 0;
+        do {
+          const { data } = await mindmapApi.listMaps(page, 100, keyword);
+          collected.push(...data.items);
+          total = data.total;
+          page += 1;
+          if (data.items.length === 0) break;
+        } while (collected.length < total);
+
+        set((s) => {
+          const existing = new Map(s.maps.map((m) => [m.id, m]));
+          const next = collected.map((item) => {
+            const cached = existing.get(item.id);
+            // 已加载整树的缓存保留树，只刷新摘要字段
+            if (cached?.loaded) {
+              return {
+                ...cached,
+                title: item.title,
+                desc: item.desc ?? '',
+                repo: item.repo ?? null,
+                node_count: item.node_count ?? cached.node_count,
+                prop_count: item.prop_count ?? cached.prop_count,
+              };
+            }
+            return summaryToMap(item);
+          });
+          return { maps: next, mapsLoading: false, mapsError: null };
+        });
+      } catch (err) {
+        set({ mapsLoading: false, mapsError: errorMessage(err, '加载知识地图失败') });
+      }
+    },
+
+    ensureTree: async (mapId) => {
+      const cached = get().maps.find((m) => m.id === mapId);
+      if (cached?.loaded) return cached;
+      return get().refreshTree(mapId);
+    },
+
+    refreshTree: async (mapId) => {
+      set({ treeLoading: true, treeError: null });
+      try {
+        const { data } = await mindmapApi.getTree(mapId);
+        applyTree(data);
+        set({ treeLoading: false });
+        return withCounts(data);
+      } catch (err) {
+        set({ treeLoading: false, treeError: errorMessage(err, '加载脑图失败') });
+        return null;
+      }
+    },
+
+    // ---------------- 地图 CRUD ----------------
+    createMap: async (title, desc) => {
+      const { data } = await mindmapApi.createMap(title, desc || '');
+      const map = withCounts(data);
+      set((s) => ({ maps: [...s.maps, map] }));
       logOp(`新建地图：${title}`);
-      return newMap;
+      return map;
     },
-    updateMap: (mapId, patch) => {
-      set((s) => ({
-        maps: s.maps.map((m) => (m.id === mapId ? { ...m, ...patch } : m)),
-      }));
-      logOp(`修改地图：${patch.title ?? ''}`);
+
+    updateMap: async (mapId, patch) => {
+      const body: { title?: string; desc?: string; repo?: { id: string; name?: string } } = {};
+      if (patch.title !== undefined) body.title = patch.title;
+      if (patch.desc !== undefined) body.desc = patch.desc;
+      if (patch.repo) body.repo = { id: patch.repo.id, name: patch.repo.name };
+      const { data } = await mindmapApi.updateMap(mapId, body);
+      const map = withCounts(data);
+      applyTree(map);
+      logOp(`修改地图：${map.title}`);
+      return map;
     },
-    deleteMap: (mapId) => {
+
+    deleteMap: async (mapId) => {
+      await mindmapApi.deleteMap(mapId);
       set((s) => ({
         maps: s.maps.filter((m) => m.id !== mapId),
         activeMapId: s.activeMapId === mapId ? null : s.activeMapId,
@@ -274,159 +400,105 @@ export const useAppStore = create<StoreState>((set, get) => {
       }));
       logOp('删除地图');
     },
-    importMap: (map) => {
-      set((s) => {
-        if (s.maps.some((m) => m.title === map.title)) {
-          return { maps: s.maps }; // 保留，由调用者在 store 外做重命名或提示
-        }
-        return { maps: [...s.maps, map] };
-      });
+
+    importMap: async (payload) => {
+      const { data } = await mindmapApi.importMap(payload);
+      const map = withCounts(data);
+      set((s) => ({
+        maps: s.maps.some((m) => m.id === map.id) ? s.maps : [...s.maps, map],
+      }));
       logOp(`导入知识地图：${map.title}`);
+      return map;
     },
 
-    // 节点 CRUD
-    addNode: (parentId, name) => {
-      const node: TreeNode = { id: newId(), name, props: [], children: [] };
-      set((s) => {
-        if (!s.activeMapId) return {};
-        const maps = s.maps.map((m) => {
-          if (m.id !== s.activeMapId) return m;
-          // 深拷贝 map
-          const nm: TreeMap = JSON.parse(JSON.stringify(m));
-          if (parentId === 'ROOT') {
-            nm.nodes = [...(nm.nodes || []), node];
-          } else {
-            const hit = findNode(nm, parentId);
-            if (!hit) return nm;
-            hit.node.children = [...(hit.node.children || []), node];
-          }
-          return nm;
-        });
-        return { maps, collapsed: new Set(s.collapsed) };
-      });
+    // ---------------- 节点 CRUD ----------------
+    addNode: async (parentId, name) => {
+      const mapId = get().activeMapId;
+      if (!mapId) throw new Error('请先进入一张知识地图');
+      const { data } = await mindmapApi.createNode(mapId, parentId, name);
+      await get().refreshTree(mapId);
       logOp(`新增节点：${name}`);
-      return node;
+      return data;
     },
-    renameNode: (nodeId, name) => {
-      set((s) => {
-        if (!s.activeMapId) return {};
-        const maps = s.maps.map((m) => {
-          if (m.id !== s.activeMapId) return m;
-          const nm: TreeMap = JSON.parse(JSON.stringify(m));
-          if (nodeId === 'ROOT') {
-            nm.title = name;
-          } else {
-            const hit = findNode(nm, nodeId);
-            if (hit) hit.node.name = name;
-          }
-          return nm;
-        });
-        return { maps };
-      });
+
+    renameNode: async (nodeId, name) => {
+      const mapId = get().activeMapId;
+      if (!mapId) throw new Error('请先进入一张知识地图');
+      const { data } = await mindmapApi.renameNode(mapId, nodeId, name);
+      if ('nodes' in data) {
+        applyTree(data);
+      } else {
+        await get().refreshTree(mapId);
+      }
       logOp(`修改节点：${name}`);
     },
-    deleteNode: (nodeId) => {
-      set((s) => {
-        if (!s.activeMapId) return {};
-        const maps = s.maps.map((m) => {
-          if (m.id !== s.activeMapId) return m;
-          const nm: TreeMap = JSON.parse(JSON.stringify(m));
-          const hit = findNode(nm, nodeId);
-          if (!hit) return nm;
-          if (hit.parentIsMap) {
-            nm.nodes = (nm.nodes || []).filter((x) => x.id !== hit.node.id);
-          } else if (hit.parent) {
-            hit.parent.children = (hit.parent.children || []).filter((x) => x.id !== hit.node.id);
-          }
-          return nm;
-        });
-        return {
-          maps,
-          selectedId: s.selectedId === nodeId ? 'ROOT' : s.selectedId,
-        };
-      });
+
+    deleteNode: async (nodeId) => {
+      const mapId = get().activeMapId;
+      if (!mapId) throw new Error('请先进入一张知识地图');
+      await mindmapApi.deleteNode(mapId, nodeId);
+      await get().refreshTree(mapId);
+      set((s) => ({ selectedId: s.selectedId === nodeId ? 'ROOT' : s.selectedId }));
       logOp('删除节点');
     },
 
-    // 属性 CRUD
-    addProp: (nodeId, prop) => {
-      set((s) => {
-        if (!s.activeMapId) return {};
-        const maps = s.maps.map((m) => {
-          if (m.id !== s.activeMapId) return m;
-          const nm: TreeMap = JSON.parse(JSON.stringify(m));
-          if (nodeId === 'ROOT') {
-            nm.props = [...(nm.props || []), prop];
-          } else {
-            const hit = findNode(nm, nodeId);
-            if (!hit) return nm;
-            hit.node.props = [...(hit.node.props || []), prop];
-          }
-          return nm;
-        });
-        return { maps };
-      });
+    // ---------------- 属性 CRUD ----------------
+    addProp: async (nodeId, prop) => {
+      const mapId = get().activeMapId;
+      if (!mapId) throw new Error('请先进入一张知识地图');
+      await mindmapApi.createProp(mapId, nodeId, { label: prop.label, note: prop.note });
+      await get().refreshTree(mapId);
       logOp(`新增属性：${prop.label}`);
     },
-    updateProp: (nodeId, idx, prop) => {
-      set((s) => {
-        if (!s.activeMapId) return {};
-        const maps = s.maps.map((m) => {
-          if (m.id !== s.activeMapId) return m;
-          const nm: TreeMap = JSON.parse(JSON.stringify(m));
-          if (nodeId === 'ROOT') {
-            nm.props = (nm.props || []).map((p, i) => (i === idx ? prop : p));
-          } else {
-            const hit = findNode(nm, nodeId);
-            if (!hit) return nm;
-            hit.node.props = (hit.node.props || []).map((p, i) => (i === idx ? prop : p));
-          }
-          return nm;
-        });
-        return { maps };
+
+    updateProp: async (nodeId, idx, prop) => {
+      const mapId = get().activeMapId;
+      if (!mapId) throw new Error('请先进入一张知识地图');
+      const map = get().maps.find((m) => m.id === mapId);
+      const existing = map ? propsOf(map, nodeId)[idx] : undefined;
+      if (!existing?.prop_id) throw new Error('属性缺少 prop_id，请刷新页面后重试');
+      await mindmapApi.updateProp(mapId, nodeId, existing.prop_id, {
+        label: prop.label,
+        note: prop.note,
       });
+      await get().refreshTree(mapId);
       logOp(`修改属性：${prop.label}`);
     },
-    deleteProp: (nodeId, idx) => {
-      set((s) => {
-        if (!s.activeMapId) return {};
-        const maps = s.maps.map((m) => {
-          if (m.id !== s.activeMapId) return m;
-          const nm: TreeMap = JSON.parse(JSON.stringify(m));
-          if (nodeId === 'ROOT') {
-            nm.props = (nm.props || []).filter((_, i) => i !== idx);
-          } else {
-            const hit = findNode(nm, nodeId);
-            if (!hit) return nm;
-            hit.node.props = (hit.node.props || []).filter((_, i) => i !== idx);
-          }
-          return nm;
-        });
-        return { maps };
-      });
+
+    deleteProp: async (nodeId, idx) => {
+      const mapId = get().activeMapId;
+      if (!mapId) throw new Error('请先进入一张知识地图');
+      const map = get().maps.find((m) => m.id === mapId);
+      const existing = map ? propsOf(map, nodeId)[idx] : undefined;
+      if (!existing?.prop_id) throw new Error('属性缺少 prop_id，请刷新页面后重试');
+      await mindmapApi.deleteProp(mapId, nodeId, existing.prop_id);
+      await get().refreshTree(mapId);
       logOp('删除属性');
     },
 
+    // ---------------- 笔记 ----------------
+    saveNote: async (mapId, nodeId, propId, payload) => {
+      await mindmapApi.updateNote(mapId, nodeId, propId, payload);
+      await get().refreshTree(mapId);
+      logOp('保存笔记');
+    },
+
     logOp,
-    exportMaps: () => {
-      const { maps } = get();
-      const payload = {
-        app: 'LinkMind',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        maps,
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: 'application/json',
-      });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'linkmind-maps.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-      logOp(`导出数据：${maps.length} 张地图`);
+    exportMaps: async () => {
+      try {
+        const { data } = await mindmapApi.exportMaps();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'linkmind-maps.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        logOp('导出数据');
+      } catch (err) {
+        set({ mapsError: errorMessage(err, '导出失败') });
+      }
     },
   };
 });
@@ -479,7 +551,6 @@ export function selectInfo(
           map,
           node: n,
           props: n.props || [],
-          // path 只含节点层级，不含 map.title（避免顶层节点与地图同名时重复）
           path: [...path, n.name],
           siblings: (parentList ?? list).filter((x) => x.id !== n.id),
         };
@@ -489,6 +560,5 @@ export function selectInfo(
     }
     return null;
   }
-  // path 从第一层节点开始，不含 map.title
   return iter(map.nodes || [], [], null);
 }

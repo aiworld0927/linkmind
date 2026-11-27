@@ -7,11 +7,10 @@ import MindCanvas from '@/features/mindmap/MindCanvas';
 import SideDrawer from '@/features/mindmap/SideDrawer';
 import CtxMenu from '@/features/mindmap/CtxMenu';
 import LogDrawer from '@/features/mindmap/LogDrawer';
-import Modals from '@/features/mindmap/Modals';
 
 /**
- * MindMapPage：当 hash 路由 `/map/:mapId` 匹配时挂载，自动 enterMap；
- * 画布 + 抽屉 + 菜单 + 弹窗。
+ * MindMapPage：当 hash 路由 `/map/:mapId` 匹配时挂载，自动 enterMap 并拉取整树。
+ * 画布 + 抽屉 + 菜单 + 弹窗（弹窗已提升到 App 全局）。
  */
 export function MindMapPage(): JSX.Element {
   const { mapId } = useParams<{ mapId: string }>();
@@ -20,6 +19,9 @@ export function MindMapPage(): JSX.Element {
   const activeMapId = useAppStore((s) => s.activeMapId);
   const collapsed = useAppStore((s) => s.collapsed);
   const setView = useAppStore((s) => s.setView);
+  const ensureTree = useAppStore((s) => s.ensureTree);
+  const treeLoading = useAppStore((s) => s.treeLoading);
+  const treeError = useAppStore((s) => s.treeError);
 
   const map = useActiveMap();
 
@@ -32,11 +34,14 @@ export function MindMapPage(): JSX.Element {
     if (activeMapId !== mapId) enterMap(mapId);
   }, [mapId, activeMapId, enterMap, goHome]);
 
-  // 退出时回到首页（用户点「返回首页」也会触发 goHome；路由离开时我们不强制 goHome，留着历史）
+  // 从后端加载整棵树（若已有缓存则跳过）
+  useEffect(() => {
+    if (mapId) void ensureTree(mapId);
+  }, [mapId, ensureTree]);
 
   // 为 CtxMenu 计算 views
   const views = useMemo(() => {
-    if (!map) return undefined;
+    if (!map || !map.loaded) return undefined;
     return build(map, collapsed).views;
   }, [map, collapsed]);
 
@@ -45,7 +50,7 @@ export function MindMapPage(): JSX.Element {
     const stage = document.getElementById('stage');
     const state = useAppStore.getState();
     const currentMap = state.maps.find((m) => m.id === state.activeMapId);
-    if (!stage || !currentMap) return;
+    if (!stage || !currentMap || !currentMap.loaded) return;
     const cr = stage.getBoundingClientRect();
     if (!cr.width || !cr.height) return;
     const { bounds } = build(currentMap, state.collapsed);
@@ -56,18 +61,33 @@ export function MindMapPage(): JSX.Element {
   // 挂载后 fit 一次
   useEffect(() => {
     const stage = document.getElementById('stage');
-    if (!stage || !map) return;
+    if (!stage || !map?.loaded) return;
     doFit();
-    // 让顶栏 fit() 按钮也能调用我们
     (window as unknown as { __lmFit?: () => void }).__lmFit = doFit;
     return () => {
       const w = window as unknown as { __lmFit?: () => void };
       if (w.__lmFit === doFit) delete w.__lmFit;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map?.id]);
+  }, [map?.id, map?.loaded]);
 
-  if (!map) return <div style={{ padding: 40, textAlign: 'center', color: '#8a94a6' }}>加载中…</div>;
+  if (!map) {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#8a94a6' }}>加载中…</div>;
+  }
+  if (!map.loaded) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: treeError ? '#b91c1c' : '#8a94a6' }}>
+        {treeError ? `加载失败：${treeError}` : treeLoading ? '加载脑图中…' : '加载中…'}
+        {treeError && mapId && (
+          <div style={{ marginTop: 12 }}>
+            <button className="mini" onClick={() => void ensureTree(mapId)}>
+              重试
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -75,7 +95,6 @@ export function MindMapPage(): JSX.Element {
       <SideDrawer />
       <CtxMenu views={views} />
       <LogDrawer />
-      <Modals />
     </div>
   );
 }
