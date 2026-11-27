@@ -12,6 +12,8 @@ import { ConflictPanel } from '@/features/git/components/ConflictPanel';
 export function GitPage(): JSX.Element {
   const repos = useGitStore((s) => s.repos);
   const currentId = useGitStore((s) => s.currentId);
+  const loading = useGitStore((s) => s.loading);
+  const error = useGitStore((s) => s.error);
   const busy = useGitStore((s) => s.busy);
   const load = useGitStore((s) => s.load);
   const select = useGitStore((s) => s.select);
@@ -76,7 +78,13 @@ export function GitPage(): JSX.Element {
 
   return (
     <div id="wrap">
-      {repos.length === 0 && (
+      {/* 加载失败显式提示：覆盖网络不可达 / 401 / 后端 5xx 等场景 */}
+      {error && (
+        <div className="empty-state" role="alert" style={{ color: '#b91c1c' }}>
+          加载仓库失败：{error}
+        </div>
+      )}
+      {!error && !loading && repos.length === 0 && (
         <div className="empty-state">
           还没有知识仓库
           <br />

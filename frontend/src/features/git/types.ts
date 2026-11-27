@@ -27,12 +27,15 @@ export interface GitCommit {
   hash: string;
   short_hash: string;
   author: string;
+  /** ISO 8601 日期时间（后端 GitCommitOut.date: datetime） */
   date: string;
   subject: string;
 }
 
 export interface GitAction {
-  id: number;
+  /** 后端 GitActionOut.id 为 uuid 字符串（原前端误标为 number） */
+  id: string;
+  /** ISO 8601 日期时间（后端 GitActionOut.ts: datetime） */
   ts: string;
   action: string;
   message: string;

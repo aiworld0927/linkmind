@@ -12,14 +12,14 @@ RUN apt-get update \
 WORKDIR /app
 
 # 先安装依赖（pyproject 已声明 packages = []，仅用于依赖安装），利用构建缓存
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
+COPY alembic.ini ./
+COPY alembic ./alembic
 RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir "alembic>=1.14.0" "pyjwt>=2.9.0" \
     && pip install --no-cache-dir .
 
-COPY . .
+COPY app ./app
 
-WORKDIR /app/src
-
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 启动前执行迁移（数据库未就绪时跳过，服务降级启动；正式部署可用 depends_on 保证顺序）
+CMD ["sh", "-c", "python -m alembic upgrade head || true; uvicorn app.main:app --host 0.0.0.0 --port 8000"]

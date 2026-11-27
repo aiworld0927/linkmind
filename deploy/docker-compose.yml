@@ -61,7 +61,7 @@ services:
           memory: 128M
     <<: [*default-restart, *default-logging]
 
-  backend:
+  linkmind-backend:
     build: ../backend
     ports:
       - "8000:8000"
@@ -95,12 +95,12 @@ services:
     restart: unless-stopped
 
   # 前端静态资源 + 反向代理 /api → backend:8000
-  frontend:
+  linkmind-web:
     build: ../frontend
     ports:
       - "${FRONTEND_PORT:-8080}:80"
     depends_on:
-      - backend
+      - linkmind-backend
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost/healthz >/dev/null 2>&1 || exit 1"]
       interval: 15s

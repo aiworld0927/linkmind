@@ -5,6 +5,8 @@ export interface NotePayload {
 }
 
 export interface TreeNodeProp {
+  /** 后端稳定的属性主键（uuid）；前端本地种子数据可缺省，接入后端后由接口回填 */
+  prop_id?: string;
   label: string;
   note: NotePayload;
   doc?: boolean;

@@ -1,7 +1,8 @@
 /** fs 模块调用后端 /api/v1/fs/tree 和 /api/v1/fs/dirs */
 import { gitApi } from '@/features/git/api';
 
-const API_BASE = '/api/v1';
+/** 后端 API 基础地址：开发环境由 .env.development 注入，缺省走同源代理 */
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 interface ApiEnvelope<T> {
   code: number;

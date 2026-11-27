@@ -1,64 +1,102 @@
-from __future__ import annotations
+"""pytest fixtures：独立测试库 linkmind_test + ASGI 客户端 + 临时知识库根目录。
 
+注意：DATABASE_URL 环境变量必须在导入 app 模块之前设置。
+"""
+
+import asyncio
 import os
-import subprocess
-from pathlib import Path
+
+TEST_DATABASE_URL = "postgresql+asyncpg://linkmind:linkmind@localhost:5432/linkmind_test"
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
 import pytest
+import pytest_asyncio
+import sqlalchemy as sa
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy.ext.asyncio import create_async_engine
 
-from services.git_service import GitService
+from app.core.config import settings
+from app.db.base import Base
+from app.db.session import engine
+
+# 注册全部 ORM 表，否则会话夹具建表时 metadata 为空
+import app.api.v1.git.models  # noqa: F401
+import app.api.v1.mindmap.models  # noqa: F401
+
+# 建库/建表用独立引擎：pytest-asyncio 的会话循环与 asyncio.run 循环互不共享连接池
 
 
-@pytest.fixture(autouse=True)
-def isolated_git_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """隔离 Git 全局配置与 HOME，避免依赖开发机配置。"""
+@pytest.fixture(scope="session", autouse=True)
+def _prepare_database():
+    """会话开始：建测试库与 5 张表；会话结束：drop_all。"""
 
-    home = tmp_path / "home"
-    home.mkdir()
-    monkeypatch.setenv("HOME", str(home))
-    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
-    monkeypatch.setenv("GIT_CONFIG_GLOBAL", os.devnull)
-    monkeypatch.setenv("GIT_TERMINAL_PROMPT", "0")
-    monkeypatch.setenv("GIT_AUTHOR_NAME", "Test")
-    monkeypatch.setenv("GIT_AUTHOR_EMAIL", "test@example.com")
-    monkeypatch.setenv("GIT_COMMITTER_NAME", "Test")
-    monkeypatch.setenv("GIT_COMMITTER_EMAIL", "test@example.com")
+    async def _setup():
+        admin = create_async_engine(
+            "postgresql+asyncpg://linkmind:linkmind@localhost:5432/linkmind",
+            isolation_level="AUTOCOMMIT",
+        )
+        async with admin.connect() as conn:
+            exists = (
+                await conn.execute(
+                    sa.text("SELECT 1 FROM pg_database WHERE datname = 'linkmind_test'")
+                )
+            ).scalar()
+            if not exists:
+                await conn.execute(sa.text("CREATE DATABASE linkmind_test"))
+        await admin.dispose()
+
+        eng = create_async_engine(TEST_DATABASE_URL)
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        await eng.dispose()
+
+    async def _teardown():
+        eng = create_async_engine(TEST_DATABASE_URL)
+        async with eng.begin() as conn:
+            await conn.run_sync(Base.metadata.drop_all)
+        await eng.dispose()
+
+    asyncio.run(_setup())
     yield
+    asyncio.run(_teardown())
 
 
-def run_git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-        check=True,
-        env=os.environ.copy(),
-    )
+@pytest_asyncio.fixture(autouse=True)
+async def _clean_tables():
+    """每个用例结束后清空全部表（子表在前）。"""
+    yield
+    async with engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(sa.delete(table))
 
 
-def make_repo(path: Path, files: dict[str, str] | None = None) -> GitService:
-    path.mkdir(parents=True, exist_ok=True)
-    for name, content in (files or {"README.md": "hello\n"}).items():
-        target = path / name
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
-    service = GitService(path)
-    service.init()
-    return service
+@pytest_asyncio.fixture
+async def client():
+    from app.main import app
 
-
-def make_remote(path: Path) -> Path:
-    path.mkdir(parents=True, exist_ok=True)
-    run_git(path, "init", "--bare", "--initial-branch=main")
-    return path
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+        yield ac
 
 
 @pytest.fixture
-def repo(tmp_path: Path) -> GitService:
-    return make_repo(tmp_path / "repo")
+def knowledge_root(tmp_path, monkeypatch):
+    """临时知识库根目录：含 md 文档与子目录，供 fs/git 用例使用。"""
+    root = tmp_path / "知识库"
+    product = root / "产品研发"
+    product.mkdir(parents=True)
+    (product / "需求.md").write_text("# 需求\n\n- 功能A\n", encoding="utf-8")
+    arch = product / "架构"
+    arch.mkdir()
+    (arch / "设计.md").write_text("# 设计\n\n- 模块化\n", encoding="utf-8")
+    (root / "总览.md").write_text("# 总览\n", encoding="utf-8")
+    monkeypatch.setattr(settings, "KNOWLEDGE_ROOT", str(root))
+    return root
 
 
-@pytest.fixture
-def remote(tmp_path: Path) -> Path:
-    return make_remote(tmp_path / "remote.git")
+@pytest_asyncio.fixture
+async def map_id(client):
+    """预置一张地图，返回 id。"""
+    r = await client.post("/api/v1/maps", json={"title": "测试地图", "desc": "d"})
+    assert r.status_code == 200
+    return r.json()["data"]["id"]

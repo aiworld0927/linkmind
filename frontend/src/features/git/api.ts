@@ -8,7 +8,8 @@ import type {
   ResolveStrategy,
 } from './types';
 
-const API_BASE = '/api/v1';
+/** 后端 API 基础地址：开发环境由 .env.development 注入，缺省走同源代理 */
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -29,6 +30,15 @@ interface ApiEnvelope<T> {
 interface ApiResult<T> {
   data: T;
   msg: string;
+}
+
+/**
+ * 后端统一分页结构（A-11 / A-12 / C-1）：`{ total, items }`。
+ * 与旧版前端 `limit` + `data.log` / `data.actions` 的约定不一致，已按后端契约修正。
+ */
+export interface Page<T> {
+  total: number;
+  items: T[];
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
@@ -108,16 +118,26 @@ export const gitApi = {
     return request<GitRepo>(`/git/repos/${repoId}/merge/abort`, json('POST'));
   },
 
-  async log(repoId: string, limit = 20): Promise<ApiResult<GitCommit[]>> {
-    const result = await request<{ log: GitCommit[] }>(`/git/repos/${repoId}/log?limit=${limit}`);
-    return { data: result.data.log, msg: result.msg };
+  /** A-11 提交历史：后端返回 Page{total, items}，使用 page/page_size 分页 */
+  async log(
+    repoId: string,
+    page = 1,
+    pageSize = 20,
+  ): Promise<ApiResult<Page<GitCommit>>> {
+    return request<Page<GitCommit>>(
+      `/git/repos/${repoId}/log?page=${page}&page_size=${pageSize}`,
+    );
   },
 
-  async actions(repoId: string, limit = 60): Promise<ApiResult<GitAction[]>> {
-    const result = await request<{ actions: GitAction[] }>(
-      `/git/repos/${repoId}/actions?limit=${limit}`,
+  /** A-12 Git 动作记录：后端返回 Page{total, items}，使用 page/page_size 分页 */
+  async actions(
+    repoId: string,
+    page = 1,
+    pageSize = 60,
+  ): Promise<ApiResult<Page<GitAction>>> {
+    return request<Page<GitAction>>(
+      `/git/repos/${repoId}/actions?page=${page}&page_size=${pageSize}`,
     );
-    return { data: result.data.actions, msg: result.msg };
   },
 
   async listDirs(path: string): Promise<ApiResult<FsDirListing>> {
